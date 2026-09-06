@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BRICOLE — Trouvez le bon professionnel</title>
+    <meta name="description"
+        content="BRICOLE met en relation particuliers et professionnels du bâtiment : plomberie, électricité, peinture, rénovation et plus." />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .font-display {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .step-progress {
+            transition: width .3s ease;
+        }
+
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="bg-white text-slate-700">
+
+    <div id="app"></div>
+
+    <script>
+        /* =========================================================================
+           CONFIGURATION — à modifier avant publication
+           ========================================================================= */
+        const API_BASE = "https://REMPLACEZ-MOI-PAR-VOTRE-BACKEND.onrender.com/api";
+        // Exemple une fois déployé sur Render : "https://bricole-backend.onrender.com/api"
+
+        /* =========================================================================
+           État de l'application
+           ========================================================================= */
+        let state = {
+            view: "home",
+            menuOpen: false,
+            authType: "particulier",
+            authError: "",
+            authLoading: false,
+
+            token: localStorage.getItem("bricole_token") || null,
+            user: null,          // rempli via /auth/me au démarrage si un token existe
+            sessionChecked: false,
+
+            categories: [],
+
+            selectedProId: null,
+            selectedRequestId: null,
+            selectedConversationId: null,
+
+            wizardStep: 1,
+            wizardData: { besoin: "", categoryId: null, categoryName: "", description: "", photos: 0, ville: "", codePostal: "", budget: "", urgence: "", disponibilite: "" },
+            wizardSubmitting: false,
+            wizardError: "",
+
+            reviewDraft: { qualite: 0, ponctualite: 0, prix: 0, communication: 0, professionnalisme: 0, commentaire: "" },
+
+            // caches de données chargées depuis l'API, avec indicateurs de chargement/erreur par domaine
+            loading: {},
+            errors: {},
+            myRequests: [],
+            feed: [],
+            professionals: [],
+            professionalDetail: null,
+            requestDetail: null,
+            requestProposals: [],
+            requestQuotes: [],
+            conversations: [],
+            messages: [],
+            appointments: [],
+            notifications: [],
+            adminStats: null,
+            adminUsers: [],
+            searchMetier: "Tous les métiers",
+            quoteForm: { requestId: null, description: "", mainOeuvre: "", materiaux: "", frais: "", dureeEstimee: "", dateProposee: "" }
+        };
+
+        /* =========================================================================
+           Client API
+           ========================================================================= */
+        async function apiFetch(path, { method = "GET", body, auth = true } = {}) {
+            const headers = { "Content-Type": "application/json" };
+            if (auth && state.token) headers.Authorization = `Bearer ${state.token}`;
+
+            let response;
+            try {
+                response = await fetch(`${API_BASE}${path}`, {
+                    method,
+                    headers,
+                    body: body ? JSON.stringify(body) : undefined,
+                });
+            } catch (networkErr) {
+                throw new Error("Impossible de joindre le serveur. Vérifiez votre connexion ou l'URL du backend (API_BASE).");
+            }
+
+            let data = {};
+            try { data = await response.json(); } catch (_) { /* réponse vide (ex: 204) */ }
+
+            if (!response.ok) {
+                throw new Error(data.error || `Erreur ${response.status}`);
+            }
+            return data;
+        }
+
+        function saveSession(token, user) {
+            state.token = token;
+            state.user = user;
+            localStorage.setItem("bricole_token", token);
+        }
+        function clearSession() {
+            state.token = null;
+            state.user = null;
+            localStorage.removeItem("bricole_token");
+        }
+
+        /* =========================================================================
+           Navigation / rendu
+           ========================================================================= */
+        function setView(v) { state.view = v; window.scrollTo(0, 0); render(); }
+        function toggleMenu() { state.menuOpen = !state.menuOpen; render(); }
+        function icon(name, cls) { return `<i data-lucide="${name}" class="${cls || ''}"></i>`; }
+        function stars(note) {
+            let s = "";
+            for (let i = 1; i <= 5; i++) {
+                s += `<i data-lucide="star" class="w-3.5 h-3.5 ${i <= Math.round(note || 0) ? 'fill-orange-400 text-orange-400' : 'fill-slate-200 text-slate-200'}"></i>`;
+            }
+            return `<div class="flex items-center gap-0.5">${s}</div>`;
+        }
+        function initialsOf(name) { return (name || "?").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(); }
+        function spinner() { return `<div class="flex justify-center py-16">${icon('loader-2', 'w-6 h-6 text-slate-300 spin')}</div>`; }
+        function errorBox(msg) { return `<div class="bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg p-4">${msg}</div>`; }
+        function fmtDate(d) { return new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long" }); }
+        function fmtDateTime(d) { return new Date(d).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); }
+
+        const STATUS_LABELS = {
+            brouillon: "Brouillon", publiee: "Publiée", interesses: "Professionnels intéressés",
+            devis_recus: "Devis reçus", pro_selectionne: "Professionnel sélectionné",
+            en_cours: "Travaux en cours", terminee: "Terminée", annulee: "Annulée"
+        };
+        const STATUS_STYLES = {
+            brouillon: "bg-slate-100 text-slate-600", publiee: "bg-blue-100 text-blue-800",
+            interesses: "bg-orange-100 text-orange-700", devis_recus: "bg-purple-100 text-purple-700",
+            pro_selectionne: "bg-teal-100 text-teal-700", en_cours: "bg-teal-100 text-teal-700",
+            terminee: "bg-green-100 text-green-700", annulee: "bg-red-100 text-red-700"
+        };
+
+        const BESOINS = ["Réparer un problème", "Rénover", "Installer", "Entretenir", "Construire", "Bricoler", "Autre"];
+        const URGENCES = ["Pas urgent", "Cette semaine", "Dès que possible", "Urgent"];
+        const BUDGETS = ["Je ne sais pas", "Moins de 5 000 DA", "Entre 5 000 et 20 000 DA", "Plus de 20 000 DA"];
+
+        /* =========================================================================
+           Démarrage : restaurer la session + charger les catégories
+           ========================================================================= */
+        async function init() {
+            try {
+                const { categories } = await apiFetch("/categories", { auth: false });
+                state.categories = categories;
+            } catch (e) { state.errors.categories = e.message; }
+
+            if (state.token) {
+                try {
+                    const { user } = await apiFetch("/auth/me");
+                    state.user = user;
+                } catch (e) {
+                    clearSession(); // token invalide/expiré
+                }
+            }
+            state.sessionChecked = true;
+            render();
+        }
+
+        /* =========================================================================
+           Authentification
+           ========================================================================= */
+        function setAuthType(t) { state.authType = t; render(); }
+
+        async function doLogin(email, password) {
+            state.authError = ""; state.authLoading = true; render();
+            try {
+                const { token, user } = await apiFetch("/auth/login", { method: "POST", auth: false, body: { email, password } });
+                saveSession(token, user);
+                state.authLoading = false;
+                goToDashboard();
+            } catch (e) {
+                state.authError = e.message; state.authLoading = false; render();
+            }
+        }
+
+        async function doRegister(fields) {
+            state.authError = ""; state.authLoading = true; render();
+            try {
+                const { token, user } = await apiFetch("/auth/register", {
+                    method: "POST", auth: false, body: {
+                        fullName: fields.fullName, email: fields.email, password: fields.password,
+                        role: state.authType, phone: fields.phone
+                    }
+                });
+                saveSession(token, user);
+                state.authLoading = false;
+                goToDashboard();
+            } catch (e) {
+                state.authError = e.message; state.authLoading = false; render();
+            }
+        }
+
+        function logout() { clearSession(); setView("home"); }
+
+        function goToDashboard() {
+            setView("dashboard");
+            if (state.user.role === "particulier") loadMyRequests();
+            else if (state.user.role === "pro") loadFeed();
+            loadNotifications();
+        }
+
+        function requireLogin(role) {
+            if (!state.user) { setView("login"); return false; }
+            if (role && state.user.role !== role) { setView("dashboard"); return false; }
+            return true;
+        }
+
+        /* =========================================================================
+           Chargement des données (par domaine)
+           ========================================================================= */
+        async function loadMyRequests() {
+            state.loading.myRequests = true; render();
+            try { state.myRequests = (await apiFetch("/requests/mine")).requests; }
+            catch (e) { state.errors.myRequests = e.message; }
+            state.loading.myRequests = false; render();
+        }
+
+        async function loadFeed() {
+            state.loading.feed = true; render();
+            try { state.feed = (await apiFetch("/requests/feed")).requests; }
+            catch (e) { state.errors.feed = e.message; }
+            state.loading.feed = false; render();
+        }
+
+        async function loadProfessionals() {
+            state.loading.professionals = true; render();
+            try {
+                const params = new URLSearchParams();
+                if (state.searchMetier !== "Tous les métiers") params.set("category", state.searchMetier);
+                state.professionals = (await apiFetch(`/professionals?${params.toString()}`, { auth: false })).professionals;
+            } catch (e) { state.errors.professionals = e.message; }
+            state.loading.professionals = false; render();
+        }
+        function setSearchMetier(m) { state.searchMetier = m; loadProfessionals(); }
+
+        async function loadProfessionalDetail(id) {
+            state.selectedProId = id; state.professionalDetail = null;
+            state.loading.professionalDetail = true; render();
+            try { state.professionalDetail = await apiFetch(`/professionals/${id}`, { auth: false }); }
+            catch (e) { state.errors.professionalDetail = e.message; }
+            state.loading.professionalDetail = false; render();
+        }
+
+        async function loadRequestDetail(id) {
+            state.selectedRequestId = id;
+            state.loading.requestDetail = true; render();
+            try {
+                state.requestDetail = await apiFetch(`/requests/${id}`);
+                state.requestProposals = (await apiFetch(`/requests/${id}/proposals`)).proposals;
+                state.requestQuotes = (await apiFetch(`/requests/${id}/quotes`)).quotes;
+            } catch (e) { state.errors.requestDetail = e.message; }
+            state.loading.requestDetail = false; render();
+        }
+
+        async function loadConversations() {
+            state.loading.conversations = true; render();
+            try { state.conversations = (await apiFetch("/conversations")).conversations; }
+            catch (e) { state.errors.conversations = e.message; }
+            state.loading.conversations = false; render();
+        }
+
+        async function loadMessages(conversationId) {
+            state.selectedConversationId = conversationId;
+            state.loading.messages = true; render();
+            try { state.messages = (await apiFetch(`/conversations/${conversationId}/messages`)).messages; }
+            catch (e) { state.errors.messages = e.message; }
+            state.loading.messages = false; render();
+        }
+
+        async function loadAppointments() {
+            state.loading.appointments = true; render();
+            try { state.appointments = (await apiFetch("/appointments")).appointments; }
+            catch (e) { state.errors.appointments = e.message; }
+            state.loading.appointments = false; render();
+        }
+
+        async function loadNotifications() {
+            try { state.notifications = (await apiFetch("/notifications")).notifications; render(); }
+            catch (e) { /* silencieux : ne bloque pas le reste de l'UI */ }
+        }
+
+        async function loadAdmin() {
+            state.loading.admin = true; render();
+            try {
+                state.adminStats = await apiFetch("/admin/stats");
+                state.adminUsers = (await apiFetch("/admin/users")).users;
+            } catch (e) { state.errors.admin = e.message; }
+            state.loading.admin = false; render();
+        }
+
+        /* =========================================================================
+           Actions
+           ========================================================================= */
+        async function exprimerInteret(requestId) {
+            try {
+                await apiFetch(`/requests/${requestId}/proposals`, { method: "POST", body: { message: "Je suis disponible pour ce chantier." } });
+                loadFeed();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function decideQuote(quoteId, decision) {
+            try {
+                await apiFetch(`/quotes/${quoteId}/decision`, { method: "PATCH", body: { decision } });
+                loadRequestDetail(state.selectedRequestId);
+            } catch (e) { alert(e.message); }
+        }
+
+        async function markRequestComplete(requestId) {
+            try {
+                await apiFetch(`/requests/${requestId}/complete`, { method: "PATCH" });
+                loadRequestDetail(requestId);
+            } catch (e) { alert(e.message); }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById("msgInput");
+            if (!input || !input.value.trim()) return;
+            try {
+                await apiFetch(`/conversations/${state.selectedConversationId}/messages`, { method: "POST", body: { content: input.value } });
+                input.value = "";
+                loadMessages(state.selectedConversationId);
+            } catch (e) { alert(e.message); }
+        }
+
+        async function openConversationForProposal(requestId, professionalId) {
+            try {
+                const { conversations } = await apiFetch("/conversations");
+                const conv = conversations.find(c => c.request_id === requestId && c.professional_id === professionalId);
+                if (!conv) { alert("Conversation introuvable."); return; }
+                setView("messaging");
+                loadMessages(conv.id);
+            } catch (e) { alert(e.message); }
+        }
+
+        function openQuoteForm(requestId) {
+            state.quoteForm = { requestId, description: "", mainOeuvre: "", materiaux: "", frais: "", dureeEstimee: "", dateProposee: "" };
+            setView("quoteForm");
+        }
+        async function submitQuote() {
+            const q = state.quoteForm;
+            if (!q.description || !q.mainOeuvre || !q.materiaux) { alert("Veuillez remplir la description, la main-d'œuvre et les matériaux."); return; }
+            try {
+                await apiFetch(`/requests/${q.requestId}/quotes`, {
+                    method: "POST", body: {
+                        description: q.description, mainOeuvre: parseFloat(q.mainOeuvre), materiaux: parseFloat(q.materiaux),
+                        frais: parseFloat(q.frais || 0), dureeEstimee: q.dureeEstimee, dateProposee: q.dateProposee || undefined
+                    }
+                });
+                setView("dashboard"); loadFeed();
+            } catch (e) { alert(e.message); }
+        }
+
+        function setReviewScore(field, val) { state.reviewDraft[field] = val; render(); }
+        async function submitReview(requestId) {
+            const d = state.reviewDraft;
+            if (!d.qualite || !d.ponctualite || !d.prix || !d.communication || !d.professionnalisme) {
+                alert("Merci de noter les cinq critères."); return;
+            }
+            try {
+                await apiFetch("/reviews", { method: "POST", body: { requestId, ...d } });
+                state.reviewDraft = { qualite: 0, ponctualite: 0, prix: 0, communication: 0, professionnalisme: 0, commentaire: "", submitted: true };
+                render();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function markNotificationRead(id) {
+            try { await apiFetch(`/notifications/${id}/read`, { method: "PATCH" }); loadNotifications(); }
+            catch (e) { /* silencieux */ }
+        }
+
+        async function suspendUser(id, suspended) {
+            try { await apiFetch(`/admin/users/${id}/suspend`, { method: "PATCH", body: { suspended } }); loadAdmin(); }
+            catch (e) { alert(e.message); }
+        }
+        async function verifyPro(id, verified) {
+            try { await apiFetch(`/admin/professionals/${id}/verify`, { method: "PATCH", body: { verified } }); loadAdmin(); }
+            catch (e) { alert(e.message); }
+        }
+
+        /* =========================================================================
+           Assistant (Wizard) de publication de demande
+           ========================================================================= */
+        const WIZARD_TOTAL = 9;
+        function wizardSet(field, val, extra) { state.wizardData[field] = val; if (extra) Object.assign(state.wizardData, extra); render(); }
+        function wizardChoiceGroup(field, options, cols) {
+            return `<div class="grid grid-cols-${cols} gap-3">
+    ${options.map(o => `
+      <button onclick="wizardSet('${field}','${o.replace(/'/g, "\\'")}')" class="text-sm font-medium text-left px-4 py-3.5 rounded-lg border transition-colors ${state.wizardData[field] === o ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'}">${o}</button>`).join("")}
+  </div>`;
+        }
+        function wizardCanNext() {
+            const d = state.wizardData, s = state.wizardStep;
+            if (s === 1) return !!d.besoin;
+            if (s === 2) return !!d.categoryId;
+            if (s === 3) return d.description.trim().length > 9;
+            if (s === 5) return !!d.ville;
+            if (s === 6) return !!d.budget;
+            if (s === 7) return !!d.urgence;
+            return true;
+        }
+        function wizardNext() { if (wizardCanNext()) state.wizardStep = Math.min(state.wizardStep + 1, WIZARD_TOTAL); render(); }
+        function wizardPrev() { state.wizardStep = Math.max(state.wizardStep - 1, 1); render(); }
+        function wizardUpdateText(field, val) { state.wizardData[field] = val; }
+        function wizardAddPhoto() { state.wizardData.photos++; render(); }
+
+        async function publierDemande() {
+            if (!requireLogin("particulier")) { alert("Connectez-vous en tant que particulier pour publier une demande."); setView("login"); return; }
+            const d = state.wizardData;
+            state.wizardSubmitting = true; state.wizardError = ""; render();
+            try {
+                await apiFetch("/requests", {
+                    method: "POST", body: {
+                        typeBesoin: d.besoin, categoryId: d.categoryId, description: d.description,
+                        ville: d.ville, codePostal: d.codePostal, budget: d.budget, urgence: d.urgence,
+                        disponibilite: d.disponibilite, photoUrls: []
+                    }
+                });
+                state.wizardStep = 1;
+                state.wizardData = { besoin: "", categoryId: null, categoryName: "", description: "", photos: 0, ville: "", codePostal: "", budget: "", urgence: "", disponibilite: "" };
+                state.wizardSubmitting = false;
+                goToDashboard();
+            } catch (e) {
+                state.wizardError = e.message; state.wizardSubmitting = false; render();
+            }
+        }
+
+        /* =========================================================================
+           Header
+           ========================================================================= */
+        function renderHeader() {
+            const navItem = (label, target) => `
+    <button onclick="setView('${target}')" class="text-sm font-medium transition-colors ${state.view === target ? 'text-blue-950' : 'text-slate-500 hover:text-blue-950'}">${label}</button>`;
+            const unread = state.notifications.filter(n => !n.is_read).length;
+            return `
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-100">
+    <div class="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
+      <button onclick="setView('home')" class="flex items-center gap-2">
+        <div class="w-9 h-9 rounded-lg bg-orange-500 flex items-center justify-center">${icon('wrench', 'w-5 h-5 text-white')}</div>
+        <div class="leading-tight text-left">
+          <div class="text-lg font-extrabold tracking-tight text-blue-950 font-display">BRICOLE</div>
+          <div class="text-[11px] text-slate-500" dir="rtl">بريكولي</div>
+        </div>
+      </button>
+      <nav class="hidden md:flex items-center gap-7">
+        ${navItem("Accueil", "home")}
+        ${navItem("Comment ça marche", "comment")}
+        ${navItem("Recherche pro", "search")}
+        ${state.user ? navItem("Mon espace", "dashboard") : ""}
+      </nav>
+      <div class="hidden md:flex items-center gap-3">
+        ${state.user ? `
+          <button onclick="setView('notifications');loadNotifications()" class="relative p-2 rounded-lg hover:bg-slate-100">
+            ${icon('bell', 'w-5 h-5 text-blue-950')}
+            ${unread > 0 ? `<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-500"></span>` : ""}
+          </button>
+          <button onclick="setView('settings')" class="text-sm font-semibold px-4 py-2 rounded-lg text-blue-950 hover:bg-slate-100 transition-colors">${state.user.full_name || state.user.fullName}</button>
+        ` : `
+          <button onclick="setView('login')" class="text-sm font-semibold px-4 py-2 rounded-lg text-blue-950 hover:bg-slate-100 transition-colors">Connexion</button>
+        `}
+        <button onclick="setView('wizard')" class="text-sm font-semibold px-4 py-2.5 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors shadow-sm">Décrire mon besoin</button>
+      </div>
+      <button class="md:hidden text-blue-950" onclick="toggleMenu()">${icon(state.menuOpen ? 'x' : 'menu', 'w-6 h-6')}</button>
+    </div>
+    ${state.menuOpen ? `
+    <div class="md:hidden border-t border-slate-100 px-5 py-4 flex flex-col gap-4 bg-white">
+      ${navItem("Accueil", "home")}
+      ${navItem("Comment ça marche", "comment")}
+      ${navItem("Recherche pro", "search")}
+      ${state.user ? navItem("Mon espace", "dashboard") + navItem("Notifications", "notifications") + navItem("Paramètres", "settings") : navItem("Connexion", "login")}
+      <button onclick="setView('wizard');toggleMenu()" class="text-sm font-semibold px-4 py-2.5 rounded-lg bg-orange-500 text-white text-center">Décrire mon besoin</button>
+    </div>` : ""}
+  </header>`;
+        }
+
+        /* =========================================================================
+           Accueil
+           ========================================================================= */
+        function renderHome() {
+            return `
+  <section class="bg-blue-950">
+    <div class="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-24 grid md:grid-cols-2 gap-10 items-center">
+      <div>
+        <h1 class="text-3xl md:text-5xl font-extrabold text-white leading-tight font-display">Un problème chez vous ?<br/>Trouvez le bon professionnel.</h1>
+        <p class="mt-5 text-blue-100 text-base md:text-lg max-w-md">Décrivez votre besoin, ajoutez quelques photos et recevez l'aide de professionnels qualifiés près de chez vous.</p>
+        <div class="mt-8 flex flex-col sm:flex-row gap-3">
+          <button onclick="setView('wizard')" class="px-6 py-3.5 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 transition-colors flex items-center justify-center gap-2">
+            J'ai besoin d'un professionnel ${icon('arrow-right', 'w-4 h-4')}
+          </button>
+          <button onclick="state.authType='pro'; setView(state.user ? 'dashboard' : 'signup')" class="px-6 py-3.5 rounded-lg bg-blue-900 text-white font-semibold hover:bg-blue-800 transition-colors border border-blue-800">Je suis un professionnel</button>
+        </div>
+        <div class="mt-8 flex items-center gap-6 text-blue-200 text-sm">
+          <div class="flex items-center gap-1.5">${icon('shield-check', 'w-4 h-4')} Profils vérifiés</div>
+          <div class="flex items-center gap-1.5">${icon('users', 'w-4 h-4')} Communauté grandissante</div>
+        </div>
+      </div>
+      <div class="rounded-2xl bg-blue-900 border border-blue-800 p-6">
+        <div class="rounded-xl bg-white p-5">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-semibold">KB</div>
+            <div>
+              <div class="font-semibold text-blue-950 text-sm">Karim B. — Plombier</div>
+              <div class="flex items-center gap-1 text-xs text-slate-500">${stars(4.9)} 132 avis · Blida</div>
+            </div>
+            ${icon('badge-check', 'w-5 h-5 text-blue-600 ml-auto')}
+          </div>
+          <div class="text-sm text-slate-600 bg-slate-50 rounded-lg p-3 mb-3">"Je peux passer aujourd'hui entre 14h et 16h pour un diagnostic de la fuite."</div>
+          <div class="flex gap-2"><div class="flex-1 h-8 rounded-md bg-blue-50"></div><div class="flex-1 h-8 rounded-md bg-blue-50"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20">
+    <h2 class="text-2xl md:text-3xl font-extrabold text-blue-950 text-center font-display">Comment ça marche</h2>
+    <div class="mt-10 grid sm:grid-cols-2 md:grid-cols-4 gap-5">
+      ${[
+                    ["Décrivez votre besoin", "En quelques mots, expliquez ce dont vous avez besoin.", "file-text"],
+                    ["Ajoutez des photos", "Une image aide le professionnel à mieux comprendre le problème.", "camera"],
+                    ["Recevez des propositions", "Des professionnels qualifiés vous répondent avec un devis.", "message-circle"],
+                    ["Choisissez votre pro", "Comparez, échangez, et sélectionnez celui qui vous convient.", "thumbs-up"]
+                ].map(([t, d, i]) => `
+        <div class="rounded-xl border border-slate-100 p-5 shadow-sm">
+          <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-4">${icon(i, 'w-5 h-5 text-blue-950')}</div>
+          <div class="font-semibold text-blue-950">${t}</div>
+          <div class="text-sm text-slate-500 mt-1.5">${d}</div>
+        </div>`).join("")}
+    </div>
+  </section>
+
+  <section class="bg-slate-50 py-16 md:py-20">
+    <div class="max-w-6xl mx-auto px-5 md:px-8">
+      <h2 class="text-2xl md:text-3xl font-extrabold text-blue-950 text-center font-display">Un professionnel pour chaque besoin</h2>
+      <div class="mt-10 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        ${state.categories.length ? state.categories.map(c => `
+          <button onclick="setView('wizard')" class="bg-white rounded-xl border border-slate-100 p-5 flex flex-col items-center gap-3 shadow-sm hover:shadow-md hover:border-blue-100 transition-all text-center">
+            <div class="w-11 h-11 rounded-lg bg-blue-50 flex items-center justify-center">${icon(c.icon, 'w-5 h-5 text-blue-950')}</div>
+            <span class="text-sm font-medium text-slate-700">${c.name}</span>
+          </button>`).join("") : `<div class="col-span-full text-center text-sm text-slate-400 py-8">${state.errors.categories ? errorBox(state.errors.categories) : "Chargement des catégories..."}</div>`}
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-blue-950 py-16">
+    <div class="max-w-3xl mx-auto px-5 text-center">
+      <h2 class="text-2xl md:text-3xl font-extrabold text-white font-display">Votre projet commence ici.</h2>
+      <button onclick="setView('wizard')" class="mt-6 px-7 py-3.5 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 transition-colors">Décrire mon besoin</button>
+    </div>
+  </section>`;
+        }
+
+        function renderComment() {
+            const steps = [
+                ["Décrivez votre besoin", "Sélectionnez le type de travaux et expliquez votre problème en quelques phrases."],
+                ["Ajoutez des photos", "Une ou plusieurs photos aident le professionnel à préparer son intervention."],
+                ["Recevez des propositions", "Les professionnels disponibles dans votre zone vous envoient un message ou un devis."],
+                ["Choisissez et échangez", "Comparez les profils et devis, discutez par messagerie, puis fixez un rendez-vous."]
+            ];
+            return `
+  <div class="max-w-3xl mx-auto px-5 md:px-8 py-16">
+    <h1 class="text-3xl font-extrabold text-blue-950 text-center font-display">Comment ça marche</h1>
+    <div class="mt-10 space-y-5">
+      ${steps.map(([t, d], i) => `
+        <div class="flex gap-4 items-start bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
+          <div class="w-9 h-9 rounded-full bg-blue-950 text-white flex items-center justify-center font-semibold text-sm shrink-0">${i + 1}</div>
+          <div><div class="font-semibold text-blue-950">${t}</div><div class="text-sm text-slate-500 mt-1">${d}</div></div>
+        </div>`).join("")}
+    </div>
+    <div class="text-center mt-10">
+      <button onclick="setView('wizard')" class="px-6 py-3.5 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600">Décrire mon besoin</button>
+    </div>
+  </div>`;
+        }
+
+        /* =========================================================================
+           Connexion / Inscription
+           ========================================================================= */
+        function renderLogin() {
+            return `
+  <div class="bg-slate-50 min-h-[70vh] flex items-center justify-center py-16">
+    <div class="w-full max-w-sm bg-white rounded-2xl border border-slate-100 shadow-sm p-6 md:p-8">
+      <h1 class="text-xl font-bold text-blue-950 font-display mb-1">Connexion</h1>
+      <p class="text-sm text-slate-500 mb-6">Accédez à votre espace BRICOLE.</p>
+      ${state.authError ? `<div class="mb-4">${errorBox(state.authError)}</div>` : ""}
+      <div class="space-y-3">
+        <input id="loginEmail" type="email" placeholder="Email" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+        <input id="loginPassword" type="password" placeholder="Mot de passe" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+      </div>
+      <button ${state.authLoading ? 'disabled' : ''} onclick="doLogin(document.getElementById('loginEmail').value, document.getElementById('loginPassword').value)" class="w-full mt-4 py-3 rounded-lg bg-blue-950 text-white text-sm font-semibold hover:bg-blue-900 disabled:opacity-50 flex items-center justify-center gap-2">
+        ${state.authLoading ? icon('loader-2', 'w-4 h-4 spin') : ""} Se connecter
+      </button>
+      <div class="text-center mt-4 text-xs text-slate-400">Pas encore de compte ? <button onclick="setView('signup')" class="text-orange-600 font-medium">Créer un compte</button></div>
+    </div>
+  </div>`;
+        }
+        function renderSignup() {
+            return `
+  <div class="bg-slate-50 min-h-[70vh] flex items-center justify-center py-16">
+    <div class="w-full max-w-sm bg-white rounded-2xl border border-slate-100 shadow-sm p-6 md:p-8">
+      <h1 class="text-xl font-bold text-blue-950 font-display mb-1">Créer un compte</h1>
+      <p class="text-sm text-slate-500 mb-6">Rejoignez BRICOLE en quelques secondes.</p>
+      ${state.authError ? `<div class="mb-4">${errorBox(state.authError)}</div>` : ""}
+      <div class="grid grid-cols-2 gap-2 mb-5">
+        <button onclick="setAuthType('particulier')" class="text-sm font-medium py-2.5 rounded-lg border ${state.authType === 'particulier' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-200 text-slate-600'}">Je suis un particulier</button>
+        <button onclick="setAuthType('pro')" class="text-sm font-medium py-2.5 rounded-lg border ${state.authType === 'pro' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-200 text-slate-600'}">Je suis un professionnel</button>
+      </div>
+      <div class="space-y-3">
+        <input id="suName" placeholder="Nom complet" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+        <input id="suPhone" placeholder="Téléphone" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+        <input id="suEmail" type="email" placeholder="Email" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+        <input id="suPassword" type="password" placeholder="Mot de passe (8 caractères min.)" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+      </div>
+      <button ${state.authLoading ? 'disabled' : ''} onclick="doRegister({fullName:document.getElementById('suName').value, phone:document.getElementById('suPhone').value, email:document.getElementById('suEmail').value, password:document.getElementById('suPassword').value})" class="w-full mt-4 py-3 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 flex items-center justify-center gap-2">
+        ${state.authLoading ? icon('loader-2', 'w-4 h-4 spin') : ""} Créer mon compte
+      </button>
+      <div class="text-center mt-4 text-xs text-slate-400">Déjà inscrit ? <button onclick="setView('login')" class="text-orange-600 font-medium">Se connecter</button></div>
+    </div>
+  </div>`;
+        }
+
+        /* =========================================================================
+           Assistant de publication (Wizard)
+           ========================================================================= */
+        function renderWizard() {
+            const s = state.wizardStep, d = state.wizardData;
+            let body = "";
+            if (s === 1) body = `<h2 class="text-xl font-bold text-blue-950 mb-5 font-display">Que souhaitez-vous faire ?</h2>${wizardChoiceGroup('besoin', BESOINS, 2)}`;
+            if (s === 2) body = `<h2 class="text-xl font-bold text-blue-950 mb-5 font-display">Quel métier recherchez-vous ?</h2>
+    <div class="grid grid-cols-3 gap-3">
+      ${state.categories.map(c => `
+        <button onclick="wizardSet('categoryId',${c.id},{categoryName:'${c.name}'})" class="flex flex-col items-center gap-2 px-3 py-4 rounded-lg border transition-colors ${d.categoryId === c.id ? 'border-orange-500 bg-orange-50' : 'border-slate-200 hover:border-slate-300'}">
+          ${icon(c.icon, `w-5 h-5 ${d.categoryId === c.id ? 'text-orange-600' : 'text-blue-950'}`)}
+          <span class="text-xs font-medium text-slate-600 text-center">${c.name}</span>
+        </button>`).join("")}
+    </div>`;
+            if (s === 3) body = `<h2 class="text-xl font-bold text-blue-950 mb-2 font-display">Décrivez votre problème</h2>
+    <p class="text-sm text-slate-500 mb-4">Ex : "Mon robinet fuit depuis plusieurs jours et l'eau coule sous l'évier."</p>
+    <textarea oninput="wizardUpdateText('description', this.value)" rows="5" placeholder="Décrivez votre besoin en quelques phrases..." class="w-full rounded-lg border border-slate-200 p-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400">${d.description}</textarea>`;
+            if (s === 4) body = `<h2 class="text-xl font-bold text-blue-950 mb-5 font-display">Ajoutez des photos ou une vidéo</h2>
+    <button onclick="wizardAddPhoto()" class="w-full rounded-lg border-2 border-dashed border-slate-300 py-10 flex flex-col items-center gap-2 text-slate-400 hover:border-orange-300 hover:text-orange-500 transition-colors">
+      ${icon('image-plus', 'w-7 h-7')}<span class="text-sm font-medium">Cliquez pour ajouter une photo</span>
+    </button>
+    <p class="text-xs text-slate-400 mt-2">L'envoi de fichiers réels nécessite un service de stockage externe (voir README du backend) — cette étape est simulée dans cette démo.</p>
+    ${d.photos > 0 ? `<div class="mt-4 flex gap-2 flex-wrap">${Array.from({ length: d.photos }).map(() => `<div class="w-16 h-16 rounded-lg bg-slate-100 flex items-center justify-center">${icon('camera', 'w-5 h-5 text-slate-400')}</div>`).join("")}</div>` : ""}`;
+            if (s === 5) body = `<h2 class="text-xl font-bold text-blue-950 mb-5 font-display">Où se situe le logement ?</h2>
+    <div class="space-y-3">
+      <input oninput="wizardUpdateText('ville', this.value)" value="${d.ville}" placeholder="Ville" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+      <input oninput="wizardUpdateText('codePostal', this.value)" value="${d.codePostal}" placeholder="Code postal" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+      <p class="text-xs text-slate-400">Votre adresse exacte ne sera jamais affichée publiquement.</p>
+    </div>`;
+            if (s === 6) body = `<h2 class="text-xl font-bold text-blue-950 mb-5 font-display">Quel est votre budget ?</h2>${wizardChoiceGroup('budget', BUDGETS, 2)}`;
+            if (s === 7) body = `<h2 class="text-xl font-bold text-blue-950 mb-5 font-display">À quel point est-ce urgent ?</h2>${wizardChoiceGroup('urgence', URGENCES, 2)}`;
+            if (s === 8) body = `<h2 class="text-xl font-bold text-blue-950 mb-2 font-display">Quand êtes-vous disponible ?</h2>
+    <p class="text-sm text-slate-500 mb-4">Pour organiser la visite du professionnel.</p>
+    <input oninput="wizardUpdateText('disponibilite', this.value)" value="${d.disponibilite}" placeholder="Ex : en semaine après 17h, week-end toute la journée" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">`;
+            if (s === 9) {
+                const rows = [
+                    ["Type de travaux", d.besoin || "—"], ["Métier", d.categoryName || "—"], ["Description", d.description || "—"],
+                    ["Photos", `${d.photos} fichier(s)`], ["Localisation", `${d.ville || "—"} ${d.codePostal}`],
+                    ["Budget", d.budget || "—"], ["Urgence", d.urgence || "—"], ["Disponibilité", d.disponibilite || "—"]
+                ];
+                body = `<h2 class="text-xl font-bold text-blue-950 mb-5 font-display">Récapitulatif</h2>
+    ${!state.user ? `<div class="mb-4">${errorBox("Vous devrez vous connecter (ou créer un compte particulier) pour publier cette demande.")}</div>` : ""}
+    ${state.wizardError ? `<div class="mb-4">${errorBox(state.wizardError)}</div>` : ""}
+    <div class="space-y-3 text-sm">
+      ${rows.map(([l, v]) => `<div class="flex justify-between border-b border-slate-100 pb-2.5"><span class="text-slate-400">${l}</span><span class="text-slate-700 font-medium text-right max-w-[60%]">${v}</span></div>`).join("")}
+    </div>`;
+            }
+
+            return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-2xl mx-auto px-5 py-10">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-medium text-blue-950">Étape ${s} / ${WIZARD_TOTAL}</span>
+        <button onclick="setView('home')" class="text-sm text-slate-400 hover:text-slate-600">Annuler</button>
+      </div>
+      <div class="w-full h-1.5 bg-slate-200 rounded-full mb-8 overflow-hidden">
+        <div class="h-full bg-orange-500 step-progress" style="width:${(s / WIZARD_TOTAL) * 100}%"></div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 md:p-8">
+        ${body}
+        <div class="flex items-center justify-between mt-8 pt-5 border-t border-slate-100">
+          <button onclick="wizardPrev()" ${s === 1 ? 'disabled' : ''} class="flex items-center gap-1.5 text-sm font-medium px-4 py-2.5 rounded-lg ${s === 1 ? 'text-slate-300' : 'text-slate-500 hover:bg-slate-50'}">${icon('chevron-left', 'w-4 h-4')} Retour</button>
+          ${s < WIZARD_TOTAL
+                    ? `<button onclick="wizardNext()" class="flex items-center gap-1.5 text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors ${wizardCanNext() ? 'bg-blue-950 text-white hover:bg-blue-900' : 'bg-slate-100 text-slate-400'}">Continuer ${icon('chevron-right', 'w-4 h-4')}</button>`
+                    : `<button ${state.wizardSubmitting ? 'disabled' : ''} onclick="publierDemande()" class="flex items-center gap-1.5 text-sm font-semibold px-5 py-2.5 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors disabled:opacity-50">${state.wizardSubmitting ? icon('loader-2', 'w-4 h-4 spin') : ''} Publier ma demande ${icon('check', 'w-4 h-4')}</button>`}
+        </div>
+      </div>
+    </div>
+  </div>`;
+        }
+
+        /* =========================================================================
+           Recherche de professionnels
+           ========================================================================= */
+        function renderSearch() {
+            const metiers = ["Tous les métiers", ...state.categories.map(c => c.name)];
+            if (state.professionals.length === 0 && !state.loading.professionals && !state.errors.professionals) loadProfessionals();
+
+            return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-6xl mx-auto px-5 md:px-8 py-10">
+      <h1 class="text-2xl font-extrabold text-blue-950 font-display">Trouver un professionnel</h1>
+      <div class="mt-5 flex flex-wrap gap-2">
+        ${metiers.map(m => `<button onclick="setSearchMetier('${m}')" class="px-4 py-2 rounded-full text-sm font-medium border transition-colors ${state.searchMetier === m ? 'bg-blue-950 text-white border-blue-950' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}">${m}</button>`).join("")}
+      </div>
+      ${state.loading.professionals ? spinner() : state.errors.professionals ? `<div class="mt-8">${errorBox(state.errors.professionals)}</div>` : `
+      <div class="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        ${state.professionals.length === 0 ? `<div class="col-span-full text-center text-sm text-slate-400 py-10">Aucun professionnel ne correspond pour l'instant.</div>` : state.professionals.map(p => `
+          <div class="bg-white rounded-xl border border-slate-100 p-5 shadow-sm flex flex-col">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-semibold">${initialsOf(p.full_name)}</div>
+              <div class="flex-1">
+                <div class="flex items-center gap-1.5"><span class="font-semibold text-blue-950 text-sm">${p.full_name}</span>${p.verified ? icon('badge-check', 'w-4 h-4 text-blue-600') : ''}</div>
+                <div class="text-xs text-slate-500">${(p.metiers || []).join(", ") || "—"}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 mt-3 text-xs text-slate-500">${stars(p.average_rating)} ${p.average_rating || "—"} (${p.review_count || 0} avis)</div>
+            <div class="flex items-center gap-1 mt-1.5 text-xs text-slate-400">${icon('map-pin', 'w-3.5 h-3.5')} ${p.ville || "—"} · ${p.experience_years || 0} ans d'expérience</div>
+            <div class="mt-4">
+              <button onclick="loadProfessionalDetail('${p.id}');setView('profile')" class="w-full text-sm font-medium px-3 py-2 rounded-lg border border-slate-200 text-blue-950 hover:bg-slate-50">Voir le profil</button>
+            </div>
+          </div>`).join("")}
+      </div>`}
+    </div>
+  </div>`;
+        }
+
+        function renderProfile() {
+            if (state.loading.professionalDetail) return `<div class="bg-slate-50 min-h-[70vh]">${spinner()}</div>`;
+            if (state.errors.professionalDetail) return `<div class="bg-slate-50 min-h-[70vh] max-w-2xl mx-auto px-5 py-10">${errorBox(state.errors.professionalDetail)}</div>`;
+            if (!state.professionalDetail) return `<div class="bg-slate-50 min-h-[70vh]"></div>`;
+            const { professional: p, portfolio, reviews } = state.professionalDetail;
+
+            return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-4xl mx-auto px-5 md:px-8 py-10">
+      <button onclick="setView('search')" class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-950 mb-6">${icon('chevron-left', 'w-4 h-4')} Retour à la recherche</button>
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 md:p-8">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div class="w-16 h-16 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center text-xl font-bold">${initialsOf(p.full_name)}</div>
+          <div class="flex-1">
+            <div class="flex items-center gap-2">
+              <h1 class="text-xl font-bold text-blue-950 font-display">${p.full_name}</h1>
+              ${p.verified ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">${icon('badge-check', 'w-3.5 h-3.5 mr-1')}Vérifié</span>` : ''}
+            </div>
+            <div class="text-slate-500 text-sm mt-0.5">${(p.metiers || []).join(", ") || "—"} · ${p.ville || "—"} · ${p.experience_years || 0} ans d'expérience</div>
+            <div class="flex items-center gap-2 mt-1.5 text-sm">${stars(p.average_rating)} <span class="font-medium text-blue-950">${p.average_rating || "—"}</span> <span class="text-slate-400">(${p.review_count || 0} avis)</span></div>
+          </div>
+        </div>
+        <p class="mt-6 text-sm text-slate-600 leading-relaxed">${p.bio || `${(p.metiers || []).join(', ')} intervenant sur ${p.ville || 'votre région'}.`}</p>
+        <div class="mt-6 bg-slate-50 rounded-lg p-4 text-sm text-slate-500">
+          Pour contacter ce professionnel, publiez une demande dans son métier — il pourra alors se manifester et vous pourrez échanger directement.
+          <button onclick="setView('wizard')" class="block mt-2 text-orange-600 font-medium">Décrire mon besoin →</button>
+        </div>
+        <div class="mt-6">
+          <div class="text-sm font-semibold text-blue-950 mb-2">Réalisations</div>
+          <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            ${portfolio.length ? portfolio.map(item => `<div class="aspect-square rounded-lg bg-slate-100 bg-cover bg-center" style="background-image:url('${item.image_url}')"></div>`).join("") : Array.from({ length: 4 }).map(() => `<div class="aspect-square rounded-lg bg-slate-100"></div>`).join("")}
+          </div>
+        </div>
+        <div class="mt-6">
+          <div class="text-sm font-semibold text-blue-950 mb-3">Avis clients</div>
+          <div class="space-y-3">
+            ${reviews.length === 0 ? `<div class="text-sm text-slate-400">Pas encore d'avis.</div>` : reviews.map(r => `
+            <div class="border border-slate-100 rounded-lg p-4">
+              <div class="flex items-center justify-between"><span class="text-sm font-medium text-blue-950">${r.particulier_name}</span>${stars((r.qualite + r.ponctualite + r.prix + r.communication + r.professionnalisme) / 5)}</div>
+              <p class="text-sm text-slate-500 mt-1.5">${r.commentaire || ""}</p>
+            </div>`).join("")}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+        }
+
+        /* =========================================================================
+           Détail d'une demande (particulier) : propositions + devis
+           ========================================================================= */
+        function renderRequestDetail() {
+            if (state.loading.requestDetail) return `<div class="bg-slate-50 min-h-[70vh]">${spinner()}</div>`;
+            if (state.errors.requestDetail) return `<div class="bg-slate-50 min-h-[70vh] max-w-2xl mx-auto px-5 py-10">${errorBox(state.errors.requestDetail)}</div>`;
+            if (!state.requestDetail) return `<div class="bg-slate-50 min-h-[70vh]"></div>`;
+            const { request } = state.requestDetail;
+
+            return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-2xl mx-auto px-5 md:px-8 py-10">
+      <button onclick="setView('dashboard')" class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-950 mb-6">${icon('chevron-left', 'w-4 h-4')} Retour à mes demandes</button>
+
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-5">
+        <div class="flex items-center justify-between">
+          <h1 class="text-lg font-bold text-blue-950 font-display">${request.type_besoin} — ${request.category_name}</h1>
+          <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLES[request.status]}">${STATUS_LABELS[request.status]}</span>
+        </div>
+        <p class="text-sm text-slate-600 mt-3">${request.description}</p>
+        <div class="text-xs text-slate-400 mt-3">${request.ville} · Urgence : ${request.urgence} · Budget : ${request.budget || "non précisé"}</div>
+        ${request.status === "pro_selectionne" || request.status === "en_cours" ? `
+          <button onclick="markRequestComplete('${request.id}')" class="mt-4 text-sm font-medium px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">Marquer les travaux comme terminés</button>
+        ` : ""}
+        ${request.status === "terminee" ? `
+          <button onclick="setView('reviews')" class="mt-4 text-sm font-medium px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600">Laisser un avis</button>
+        ` : ""}
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-5">
+        <div class="text-sm font-semibold text-blue-950 mb-3">Professionnels intéressés (${state.requestProposals.length})</div>
+        ${state.requestProposals.length === 0 ? `<div class="text-sm text-slate-400">Aucun professionnel ne s'est encore manifesté.</div>` : `
+        <div class="space-y-3">
+          ${state.requestProposals.map(p => `
+            <div class="flex items-center justify-between border border-slate-100 rounded-lg p-4">
+              <div>
+                <div class="text-sm font-medium text-blue-950 flex items-center gap-1.5">${p.professional_name}${p.verified ? icon('badge-check', 'w-3.5 h-3.5 text-blue-600') : ''}</div>
+                <div class="text-xs text-slate-400 mt-1">${p.message || ""}</div>
+              </div>
+              <button onclick="openConversationForProposal('${request.id}','${p.professional_id}')" class="text-sm font-medium px-3 py-2 rounded-lg border border-slate-200 text-blue-950 hover:bg-slate-50">Message</button>
+            </div>`).join("")}
+        </div>`}
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        <div class="text-sm font-semibold text-blue-950 mb-3">Devis reçus (${state.requestQuotes.length})</div>
+        ${state.requestQuotes.length === 0 ? `<div class="text-sm text-slate-400">Aucun devis pour l'instant.</div>` : `
+        <div class="space-y-4">
+          ${state.requestQuotes.map(q => `
+            <div class="border border-slate-100 rounded-lg p-4">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-blue-950">${q.professional_name}</span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${q.status === 'accepte' ? 'bg-green-100 text-green-700' : q.status === 'refuse' ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700'}">${q.status}</span>
+              </div>
+              <p class="text-sm text-slate-600 mt-2">${q.description}</p>
+              <div class="flex justify-between items-center mt-3">
+                <span class="text-xs text-slate-400">Durée estimée : ${q.duree_estimee || "—"}</span>
+                <span class="text-base font-bold text-blue-950 font-display">${Number(q.total).toLocaleString('fr-FR')} DA</span>
+              </div>
+              ${q.status === 'en_attente' ? `
+              <div class="flex gap-2 mt-3">
+                <button onclick="decideQuote('${q.id}','refuse')" class="flex-1 text-sm font-medium px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Refuser</button>
+                <button onclick="decideQuote('${q.id}','accepte')" class="flex-1 text-sm font-semibold px-3 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600">Accepter</button>
+              </div>` : ""}
+            </div>`).join("")}
+        </div>`}
+      </div>
+    </div>
+  </div>`;
+        }
+
+        /* =========================================================================
+           Formulaire de devis (professionnel)
+           ========================================================================= */
+        function renderQuoteForm() {
+            const q = state.quoteForm;
+            return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-xl mx-auto px-5 md:px-8 py-10">
+      <button onclick="setView('dashboard')" class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-950 mb-6">${icon('chevron-left', 'w-4 h-4')} Retour</button>
+      <h1 class="text-2xl font-extrabold text-blue-950 font-display">Envoyer un devis</h1>
+      <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 space-y-4">
+        <textarea oninput="state.quoteForm.description=this.value" rows="3" placeholder="Description des travaux" class="w-full rounded-lg border border-slate-200 p-3 text-sm">${q.description}</textarea>
+        <div class="grid grid-cols-2 gap-3">
+          <input oninput="state.quoteForm.mainOeuvre=this.value" type="number" placeholder="Main-d'œuvre (DA)" class="rounded-lg border border-slate-200 px-3 py-2.5 text-sm">
+          <input oninput="state.quoteForm.materiaux=this.value" type="number" placeholder="Matériaux (DA)" class="rounded-lg border border-slate-200 px-3 py-2.5 text-sm">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <input oninput="state.quoteForm.frais=this.value" type="number" placeholder="Frais divers (DA)" class="rounded-lg border border-slate-200 px-3 py-2.5 text-sm">
+          <input oninput="state.quoteForm.dureeEstimee=this.value" placeholder="Durée estimée" class="rounded-lg border border-slate-200 px-3 py-2.5 text-sm">
+        </div>
+        <input oninput="state.quoteForm.dateProposee=this.value" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm">
+        <button onclick="submitQuote()" class="w-full py-3 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600">Envoyer le devis</button>
+      </div>
+    </div>
+  </div>`;
+        }
+
+        /* =========================================================================
+           Messagerie
+           ========================================================================= */
+        function renderMessaging() {
+            if (!state.selectedConversationId) {
+                if (state.conversations.length === 0 && !state.loading.conversations) loadConversations();
+                return `
+    <div class="bg-slate-50 min-h-[70vh]">
+      <div class="max-w-2xl mx-auto px-5 md:px-8 py-10">
+        <h1 class="text-2xl font-extrabold text-blue-950 font-display">Mes conversations</h1>
+        ${state.loading.conversations ? spinner() : `
+        <div class="mt-6 space-y-3">
+          ${state.conversations.length === 0 ? `<div class="text-sm text-slate-400">Aucune conversation pour le moment.</div>` : state.conversations.map(c => `
+            <button onclick="loadMessages('${c.id}')" class="w-full text-left bg-white rounded-xl border border-slate-100 p-5 hover:bg-slate-50 flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-semibold">${initialsOf(c.other_party_name)}</div>
+              <div class="flex-1">
+                <div class="text-sm font-semibold text-blue-950">${c.other_party_name}</div>
+                <div class="text-xs text-slate-400 mt-0.5">${c.last_message || c.type_besoin}</div>
+              </div>
+            </button>`).join("")}
+        </div>`}
+      </div>
+    </div>`;
+            }
+
+            const conv = state.conversations.find(c => c.id === state.selectedConversationId);
+            return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-2xl mx-auto px-5 md:px-8 py-10">
+      <button onclick="state.selectedConversationId=null;render()" class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-950 mb-4">${icon('chevron-left', 'w-4 h-4')} Toutes les conversations</button>
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
+          <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-semibold">${initialsOf(conv ? conv.other_party_name : "?")}</div>
+          <div><div class="text-sm font-semibold text-blue-950">${conv ? conv.other_party_name : ""}</div></div>
+        </div>
+        <div id="msgBox" class="p-5 space-y-3 h-80 overflow-y-auto">
+          ${state.loading.messages ? spinner() : state.messages.map(m => `
+            <div class="flex ${m.sender_id === state.user.id ? 'justify-end' : 'justify-start'}">
+              <div class="max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${m.sender_id === state.user.id ? 'bg-blue-950 text-white rounded-br-sm' : 'bg-slate-100 text-slate-700 rounded-bl-sm'}">${m.content}</div>
+            </div>`).join("")}
+        </div>
+        <div class="flex items-center gap-2 px-4 py-3 border-t border-slate-100">
+          <input id="msgInput" onkeydown="if(event.key==='Enter')sendMessage()" placeholder="Écrire un message..." class="flex-1 text-sm px-4 py-2.5 rounded-full bg-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-200">
+          <button onclick="sendMessage()" class="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center hover:bg-orange-600">${icon('send', 'w-4 h-4')}</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+        }
+
+        /* =========================================================================
+           Tableau de bord
+           ========================================================================= */
+        function renderDashboard() {
+            if (!state.user) { setView("login"); return ""; }
+
+            if (state.user.role === "pro") {
+                return `
+    <div class="bg-slate-50 min-h-[70vh]">
+      <div class="max-w-5xl mx-auto px-5 md:px-8 py-10">
+        <h1 class="text-2xl font-extrabold text-blue-950 font-display">Espace professionnel</h1>
+        <div class="mt-2 flex gap-2">
+          <button onclick="setView('appointments');loadAppointments()" class="text-sm text-blue-950 underline">Rendez-vous</button>
+        </div>
+        ${state.loading.feed ? spinner() : state.errors.feed ? `<div class="mt-6">${errorBox(state.errors.feed)}</div>` : `
+        <div class="mt-8 bg-white rounded-xl border border-slate-100 divide-y divide-slate-100">
+          ${state.feed.length === 0 ? `<div class="p-8 text-center text-sm text-slate-400">Aucune nouvelle demande dans votre métier pour l'instant. Vérifiez que votre profil (Paramètres) précise bien vos métiers et votre ville.</div>` : state.feed.map(r => `
+            <div class="p-5 flex items-center justify-between gap-4">
+              <div>
+                <div class="font-medium text-blue-950 text-sm">${r.type_besoin} — ${r.category_name}</div>
+                <div class="text-xs text-slate-400 mt-1">${r.ville} · ${r.urgence}</div>
+                <div class="text-xs text-slate-500 mt-1">${r.description}</div>
+              </div>
+              <div class="flex gap-2 shrink-0">
+                <button onclick="exprimerInteret('${r.id}')" class="text-sm font-medium px-3.5 py-2 rounded-lg bg-blue-950 text-white hover:bg-blue-900">Je suis intéressé</button>
+                <button onclick="openQuoteForm('${r.id}')" class="text-sm font-medium px-3.5 py-2 rounded-lg border border-slate-200 text-blue-950 hover:bg-slate-50">Envoyer un devis</button>
+              </div>
+            </div>`).join("")}
+        </div>`}
+      </div>
+    </div>`;
+            }
+
+            // particulier
+            return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-5xl mx-auto px-5 md:px-8 py-10">
+      <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-extrabold text-blue-950 font-display">Mes demandes</h1>
+        <button onclick="setView('wizard')" class="px-4 py-2.5 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600">Nouvelle demande</button>
+      </div>
+      <div class="mt-5 flex flex-wrap gap-2">
+        <button onclick="setView('appointments');loadAppointments()" class="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm text-blue-950 hover:bg-slate-50">${icon('calendar', 'w-4 h-4')} Rendez-vous</button>
+        <button onclick="setView('messaging');loadConversations()" class="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm text-blue-950 hover:bg-slate-50">${icon('message-circle', 'w-4 h-4')} Messages</button>
+      </div>
+      ${state.loading.myRequests ? spinner() : state.errors.myRequests ? `<div class="mt-6">${errorBox(state.errors.myRequests)}</div>` : `
+      <div class="mt-6 space-y-3">
+        ${state.myRequests.length === 0 ? `<div class="bg-white rounded-xl border border-slate-100 p-8 text-center text-sm text-slate-400">Vous n'avez pas encore publié de demande.</div>` : state.myRequests.map(d => `
+          <button onclick="loadRequestDetail('${d.id}');setView('requestDetail')" class="w-full text-left bg-white rounded-xl border border-slate-100 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50">
+            <div>
+              <div class="font-medium text-blue-950 text-sm">${d.type_besoin} — ${d.category_name || ""}</div>
+              <div class="text-xs text-slate-400 mt-1">Publiée le ${fmtDate(d.created_at)}</div>
+              <div class="text-xs text-slate-400 mt-0.5">${d.interesses} intéressé(s) · ${d.devis} devis reçu(s)</div>
+            </div>
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLES[d.status]}">${STATUS_LABELS[d.status]}</span>
+          </button>`).join("")}
+      </div>`}
+    </div>
+  </div>`;
+        }
+
+        /* =========================================================================
+           Rendez-vous
+           ========================================================================= */
+        function renderAppointments() {
+            return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-2xl mx-auto px-5 md:px-8 py-10">
+      <h1 class="text-2xl font-extrabold text-blue-950 font-display">Mes rendez-vous</h1>
+      ${state.loading.appointments ? spinner() : state.errors.appointments ? `<div class="mt-6">${errorBox(state.errors.appointments)}</div>` : `
+      <div class="mt-6 space-y-3">
+        ${state.appointments.length === 0 ? `<div class="bg-white rounded-xl border border-slate-100 p-8 text-center text-sm text-slate-400">Aucun rendez-vous pour l'instant.</div>` : state.appointments.map(a => `
+          <div class="bg-white rounded-xl border border-slate-100 p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">${icon('calendar', 'w-5 h-5 text-blue-950')}</div>
+            <div class="flex-1">
+              <div class="text-sm font-semibold text-blue-950">${a.type} avec ${a.other_party_name}</div>
+              <div class="text-xs text-slate-400 mt-1">${fmtDateTime(a.scheduled_at)}</div>
+            </div>
+          </div>`).join("")}
+      </div>`}
+    </div>
+  </div>`;
+        }
+
+        /* =========================================================================
+           Notifications
+           ========================================================================= */
+        function renderNotifications() {
+            return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-2xl mx-auto px-5 md:px-8 py-10">
+      <h1 class="text-2xl font-extrabold text-blue-950 font-display">Notifications</h1>
+      <div class="mt-6 bg-white rounded-xl border border-slate-100 divide-y divide-slate-100">
+        ${state.notifications.length === 0 ? `<div class="p-8 text-center text-sm text-slate-400">Aucune notification.</div>` : state.notifications.map(n => `
+          <button onclick="markNotificationRead('${n.id}')" class="w-full text-left p-5 flex items-start gap-3 ${n.is_read ? '' : 'bg-blue-50/40'}">
+            <div class="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">${icon('bell', 'w-4 h-4 text-blue-950')}</div>
+            <div class="flex-1 text-sm ${n.is_read ? 'text-slate-500' : 'text-slate-800 font-medium'}">${n.text}</div>
+            ${!n.is_read ? `<span class="w-2 h-2 rounded-full bg-orange-500 mt-2 shrink-0"></span>` : ""}
+          </button>`).join("")}
+      </div>
+    </div>
+  </div>`;
+        }
+
+        /* =========================================================================
+           Avis
+           ========================================================================= */
+        function renderReviews() {
+            const criteres = [["qualite", "Qualité"], ["ponctualite", "Ponctualité"], ["prix", "Prix"], ["communication", "Communication"], ["professionnalisme", "Professionnalisme"]];
+            if (state.reviewDraft.submitted) {
+                return `
+    <div class="bg-slate-50 min-h-[70vh] flex items-center justify-center py-16">
+      <div class="text-center max-w-sm">
+        <div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">${icon('check', 'w-6 h-6 text-green-700')}</div>
+        <h1 class="text-xl font-bold text-blue-950 font-display">Merci pour votre avis</h1>
+        <p class="text-sm text-slate-500 mt-2">Votre retour aide les autres particuliers à choisir le bon professionnel.</p>
+        <button onclick="setView('dashboard')" class="mt-6 px-5 py-2.5 rounded-lg bg-blue-950 text-white text-sm font-semibold">Retour à mon espace</button>
+      </div>
+    </div>`;
+            }
+            return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-xl mx-auto px-5 md:px-8 py-10">
+      <h1 class="text-2xl font-extrabold text-blue-950 font-display">Laisser un avis</h1>
+      <p class="text-sm text-slate-500 mt-1">Concernant votre demande terminée.</p>
+      <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 space-y-5">
+        ${criteres.map(([f, label]) => `
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-slate-600">${label}</span>
+            <div class="flex gap-1">
+              ${[1, 2, 3, 4, 5].map(i => `<button onclick="setReviewScore('${f}',${i})">${icon('star', `w-5 h-5 ${i <= state.reviewDraft[f] ? 'fill-orange-400 text-orange-400' : 'fill-slate-200 text-slate-200'}`)}</button>`).join("")}
+            </div>
+          </div>`).join("")}
+        <textarea oninput="state.reviewDraft.commentaire=this.value" rows="4" placeholder="Décrivez votre expérience..." class="w-full rounded-lg border border-slate-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"></textarea>
+        <button onclick="submitReview('${state.selectedRequestId}')" class="w-full py-3 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600">Publier mon avis</button>
+      </div>
+    </div>
+  </div>`;
+        }
+
+        /* =========================================================================
+           Paramètres
+           ========================================================================= */
+        function renderSettings() {
+            if (!state.user) { setView("login"); return ""; }
+            return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-xl mx-auto px-5 md:px-8 py-10">
+      <h1 class="text-2xl font-extrabold text-blue-950 font-display">Paramètres</h1>
+      <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 space-y-4">
+        <div><label class="text-xs text-slate-400">Nom complet</label><input id="setName" value="${state.user.full_name || state.user.fullName || ''}" class="w-full mt-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm"></div>
+        <div><label class="text-xs text-slate-400">Email</label><input value="${state.user.email}" disabled class="w-full mt-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm bg-slate-50 text-slate-400"></div>
+        <button onclick="apiFetch('/users/me',{method:'PUT',body:{fullName:document.getElementById('setName').value}}).then(r=>{state.user.full_name=r.user.full_name;render();}).catch(e=>alert(e.message))" class="w-full py-3 rounded-lg bg-blue-950 text-white text-sm font-semibold hover:bg-blue-900">Enregistrer</button>
+        ${state.user.role === 'admin' ? `<button onclick="setView('admin');loadAdmin()" class="w-full py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-blue-950 hover:bg-slate-50">Administration</button>` : ""}
+        <button onclick="logout()" class="w-full py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-500 hover:bg-slate-50">Se déconnecter</button>
+      </div>
+    </div>
+  </div>`;
+        }
+
+        /* =========================================================================
+           Administration
+           ========================================================================= */
+        function renderAdmin() {
+            if (state.loading.admin) return `<div class="bg-slate-50 min-h-[70vh]">${spinner()}</div>`;
+            if (state.errors.admin) return `<div class="bg-slate-50 min-h-[70vh] max-w-2xl mx-auto px-5 py-10">${errorBox(state.errors.admin)}</div>`;
+            if (!state.adminStats) return `<div class="bg-slate-50 min-h-[70vh]"></div>`;
+            const s = state.adminStats;
+            const stats = [["Particuliers", s.particuliers], ["Professionnels", s.professionnels], ["Demandes publiées", s.demandesPubliees], ["Demandes terminées", s.demandesTerminees], ["Chiffre d'affaires (DA)", s.chiffreAffaires], ["Nombre de devis", s.nombreDevis]];
+            return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-5xl mx-auto px-5 md:px-8 py-10">
+      <h1 class="text-2xl font-extrabold text-blue-950 font-display">Administration</h1>
+      <div class="mt-6 grid sm:grid-cols-3 gap-4">
+        ${stats.map(([l, v]) => `<div class="bg-white rounded-xl border border-slate-100 p-5"><div class="text-2xl font-extrabold text-blue-950 font-display">${v}</div><div class="text-sm text-slate-500 mt-1">${l}</div></div>`).join("")}
+      </div>
+      <div class="mt-8 bg-white rounded-xl border border-slate-100 overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 text-sm font-semibold text-blue-950">Utilisateurs récents</div>
+        <div class="divide-y divide-slate-100">
+          ${state.adminUsers.map(u => `
+            <div class="px-5 py-4 flex items-center justify-between">
+              <div><div class="text-sm font-medium text-blue-950">${u.full_name}</div><div class="text-xs text-slate-400">${u.role}${u.role === 'pro' ? (u.verified ? ' · vérifié' : ' · non vérifié') : ''}</div></div>
+              <div class="flex items-center gap-3">
+                ${u.role === 'pro' && !u.verified ? `<button onclick="verifyPro('${u.id}',true)" class="text-xs font-medium text-blue-700 hover:underline">Vérifier</button>` : ""}
+                <button onclick="suspendUser('${u.id}',${!u.is_suspended})" class="text-xs font-medium ${u.is_suspended ? 'text-green-600' : 'text-red-500'} hover:underline">${u.is_suspended ? 'Réactiver' : 'Suspendre'}</button>
+              </div>
+            </div>`).join("")}
+        </div>
+      </div>
+    </div>
+  </div>`;
+        }
+
+        /* =========================================================================
+           FAQ / CGU / Confidentialité / Contact (contenu statique)
+           ========================================================================= */
+        function renderFAQ() {
+            const qas = [
+                ["Combien coûte l'utilisation de BRICOLE ?", "La publication d'une demande et la mise en relation sont gratuites pour les particuliers. Les professionnels souscrivent à un abonnement pour recevoir des demandes."],
+                ["Comment sont vérifiés les professionnels ?", "Chaque professionnel fournit ses documents d'activité, qui sont contrôlés avant l'obtention du badge « Vérifié »."],
+                ["Puis-je annuler une demande ?", "Oui, à tout moment depuis votre tableau de bord, tant qu'aucun professionnel n'a été sélectionné."],
+                ["Comment mes coordonnées sont-elles protégées ?", "Votre adresse exacte n'est jamais visible publiquement ; seule une zone approximative est communiquée avant l'acceptation d'un devis."]
+            ];
+            return `
+  <div class="max-w-2xl mx-auto px-5 md:px-8 py-16">
+    <h1 class="text-3xl font-extrabold text-blue-950 text-center font-display">Questions fréquentes</h1>
+    <div class="mt-10 space-y-3">
+      ${qas.map(([q, a]) => `
+        <details class="bg-white rounded-xl border border-slate-100 p-5 group">
+          <summary class="text-sm font-semibold text-blue-950 cursor-pointer list-none flex justify-between items-center">${q}${icon('chevron-right', 'w-4 h-4 text-slate-400 group-open:rotate-90 transition-transform')}</summary>
+          <p class="text-sm text-slate-500 mt-3">${a}</p>
+        </details>`).join("")}
+    </div>
+  </div>`;
+        }
+        function renderLegal(title, paragraphs) {
+            return `
+  <div class="max-w-2xl mx-auto px-5 md:px-8 py-16">
+    <h1 class="text-2xl font-extrabold text-blue-950 font-display">${title}</h1>
+    <div class="mt-6 space-y-4 text-sm text-slate-600 leading-relaxed">${paragraphs.map(p => `<p>${p}</p>`).join("")}</div>
+  </div>`;
+        }
+        function renderCGU() {
+            return renderLegal("Conditions générales d'utilisation", [
+                "L'utilisation de BRICOLE implique l'acceptation pleine et entière des présentes conditions générales.",
+                "BRICOLE agit en tant qu'intermédiaire de mise en relation et n'est pas partie aux contrats conclus entre particuliers et professionnels.",
+                "Chaque utilisateur s'engage à fournir des informations exactes et à respecter les autres membres de la plateforme.",
+            ]);
+        }
+        function renderConfidentialite() {
+            return renderLegal("Politique de confidentialité", [
+                "BRICOLE collecte uniquement les données nécessaires à la mise en relation entre particuliers et professionnels.",
+                "Les coordonnées exactes d'un particulier ne sont jamais partagées publiquement.",
+                "Vous pouvez à tout moment demander l'accès, la rectification ou la suppression de vos données personnelles.",
+            ]);
+        }
+        function renderContact() {
+            return `
+  <div class="max-w-md mx-auto px-5 md:px-8 py-16">
+    <h1 class="text-2xl font-extrabold text-blue-950 font-display">Contact</h1>
+    <div class="mt-6 space-y-3">
+      <input placeholder="Nom" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm">
+      <input placeholder="Email" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm">
+      <textarea rows="4" placeholder="Votre message" class="w-full rounded-lg border border-slate-200 p-3 text-sm"></textarea>
+      <button onclick="alert('Merci, votre message a été noté. (Formulaire de démonstration — non connecté à un service d\\'envoi.)')" class="w-full py-3 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600">Envoyer</button>
+    </div>
+  </div>`;
+        }
+
+        /* =========================================================================
+           Footer
+           ========================================================================= */
+        function renderFooter() {
+            return `
+  <footer class="bg-blue-950 text-blue-200 text-sm">
+    <div class="max-w-6xl mx-auto px-5 md:px-8 py-10 flex flex-col sm:flex-row justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <div class="w-9 h-9 rounded-lg bg-orange-500 flex items-center justify-center">${icon('wrench', 'w-5 h-5 text-white')}</div>
+        <div class="leading-tight"><div class="text-lg font-extrabold tracking-tight text-white font-display">BRICOLE</div><div class="text-[11px] text-blue-200" dir="rtl">بريكولي</div></div>
+      </div>
+      <div class="flex flex-wrap gap-x-6 gap-y-2">
+        <button onclick="setView('comment')" class="hover:text-white">À propos</button>
+        <button onclick="setView('faq')" class="hover:text-white">FAQ</button>
+        <button onclick="setView('cgu')" class="hover:text-white">Conditions générales</button>
+        <button onclick="setView('confidentialite')" class="hover:text-white">Confidentialité</button>
+        <button onclick="setView('contact')" class="hover:text-white">Contact</button>
+      </div>
+    </div>
+    <div class="border-t border-blue-900 py-4 text-center text-xs text-blue-400">© 2026 BRICOLE / بريكولي — Tous droits réservés</div>
+  </footer>`;
+        }
+
+        /* =========================================================================
+           Routeur / rendu principal
+           ========================================================================= */
+        function render() {
+            if (!state.sessionChecked) {
+                document.getElementById("app").innerHTML = `<div class="min-h-screen flex items-center justify-center">${spinner()}</div>`;
+                return;
+            }
+            const views = {
+                home: renderHome, comment: renderComment, wizard: renderWizard,
+                search: renderSearch, profile: renderProfile, requestDetail: renderRequestDetail,
+                quoteForm: renderQuoteForm, messaging: renderMessaging,
+                dashboard: renderDashboard, login: renderLogin, signup: renderSignup,
+                appointments: renderAppointments, notifications: renderNotifications,
+                reviews: renderReviews, settings: renderSettings, admin: renderAdmin,
+                faq: renderFAQ, cgu: renderCGU, confidentialite: renderConfidentialite, contact: renderContact
+            };
+            document.getElementById("app").innerHTML = `
+    ${renderHeader()}
+    ${(views[state.view] || renderHome)()}
+    ${renderFooter()}
+  `;
+            if (window.lucide) lucide.createIcons();
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

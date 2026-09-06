@@ -1,0 +1,211 @@
+// ─────────────────────────────────────────────────────────
+// BRICOLE — Prisma Schema  (SQLite for local dev)
+// ─────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ───── Users ─────
+model User {
+  id               String    @id @default(uuid())
+  fullName         String
+  email            String    @unique
+  passwordHash     String
+  role             String    @default("particulier") // particulier | pro | admin
+  phone            String?
+  isSuspended      Boolean   @default(false)
+  stripeCustomerId String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  professionalProfile ProfessionalProfile?
+  requests            Request[]
+  proposals           Proposal[]
+  quotes              Quote[]
+  sentMessages        Message[]          @relation("SentMessages")
+  reviews             Review[]
+  appointments        Appointment[]
+  notifications       Notification[]
+  payments            Payment[]
+  conversationsAsPart Conversation[]     @relation("ParticulierConv")
+  conversationsAsPro  Conversation[]     @relation("ProfessionalConv")
+}
+
+// ───── Professional Profile ─────
+model ProfessionalProfile {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio                String?
+  metiers            String   @default("[]") // JSON array of strings
+  ville              String?
+  experienceYears    Int      @default(0)
+  verified           Boolean  @default(false)
+  subscriptionStatus String   @default("inactive") // active | inactive | cancelled
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  portfolio Portfolio[]
+}
+
+// ───── Portfolio ─────
+model Portfolio {
+  id            String              @id @default(uuid())
+  profileId     String
+  profile       ProfessionalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  imageUrl      String
+  description   String?
+  createdAt     DateTime            @default(now())
+}
+
+// ───── Categories ─────
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  icon      String    @default("wrench")
+  createdAt DateTime  @default(now())
+
+  requests Request[]
+}
+
+// ───── Requests (Demandes) ─────
+model Request {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId    Int
+  category      Category @relation(fields: [categoryId], references: [id])
+  typeBesoin    String
+  description   String
+  ville         String
+  codePostal    String?
+  budget        String?
+  urgence       String?
+  disponibilite String?
+  photoUrls     String   @default("[]") // JSON array
+  status        String   @default("publiee")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  proposals     Proposal[]
+  quotes        Quote[]
+  conversations Conversation[]
+  reviews       Review[]
+}
+
+// ───── Proposals (Expressions d'intérêt) ─────
+model Proposal {
+  id              String   @id @default(uuid())
+  requestId       String
+  request         Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  professionalId  String
+  professional    User     @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  message         String?
+  createdAt       DateTime @default(now())
+
+  @@unique([requestId, professionalId])
+}
+
+// ───── Quotes (Devis) ─────
+model Quote {
+  id              String   @id @default(uuid())
+  requestId       String
+  request         Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  professionalId  String
+  professional    User     @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  description     String
+  mainOeuvre      Float
+  materiaux       Float
+  frais           Float    @default(0)
+  total           Float
+  dureeEstimee    String?
+  dateProposee    String?
+  status          String   @default("en_attente") // en_attente | accepte | refuse
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ───── Conversations ─────
+model Conversation {
+  id              String   @id @default(uuid())
+  requestId       String
+  request         Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  particulierId   String
+  particulier     User     @relation("ParticulierConv", fields: [particulierId], references: [id], onDelete: Cascade)
+  professionalId  String
+  professional    User     @relation("ProfessionalConv", fields: [professionalId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  messages Message[]
+
+  @@unique([requestId, professionalId])
+}
+
+// ───── Messages ─────
+model Message {
+  id              String       @id @default(uuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId        String
+  sender          User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  content         String
+  createdAt       DateTime     @default(now())
+}
+
+// ───── Reviews (Avis) ─────
+model Review {
+  id                  String   @id @default(uuid())
+  requestId           String
+  request             Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  particulierId       String
+  particulier         User     @relation(fields: [particulierId], references: [id], onDelete: Cascade)
+  qualite             Int
+  ponctualite         Int
+  prix                Int
+  communication       Int
+  professionnalisme   Int
+  commentaire         String?
+  createdAt           DateTime @default(now())
+
+  @@unique([requestId, particulierId])
+}
+
+// ───── Appointments (Rendez-vous) ─────
+model Appointment {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type            String   // "Visite", "Intervention", etc.
+  otherPartyName  String
+  scheduledAt     DateTime
+  createdAt       DateTime @default(now())
+}
+
+// ───── Notifications ─────
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ───── Payments ─────
+model Payment {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeSessionId  String?  @unique
+  amount           Float
+  currency         String   @default("dzd")
+  status           String   @default("pending") // pending | completed | failed
+  description      String?
+  createdAt        DateTime @default(now())
+}

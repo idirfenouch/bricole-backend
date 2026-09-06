@@ -1,0 +1,1974 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BRICOLE — Trouvez le bon professionnel</title>
+<meta name="description" content="BRICOLE met en relation particuliers et professionnels du bâtiment : plomberie, électricité, peinture, rénovation et plus." />
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+  body { font-family: 'Inter', sans-serif; }
+  [dir="rtl"], [dir="rtl"] body, [dir="rtl"] input, [dir="rtl"] textarea, [dir="rtl"] button, [dir="rtl"] select {
+    font-family: 'Cairo', 'Inter', sans-serif !important;
+  }
+  .font-display { font-family: 'Poppins', sans-serif; }
+  [dir="rtl"] .font-display { font-family: 'Cairo', sans-serif; font-weight: 800; }
+  .step-progress { transition: width .3s ease; }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+</style>
+</head>
+<body class="bg-white text-slate-700">
+
+<div id="app"></div>
+
+<script>
+/* =========================================================================
+   INTERNATIONALISATION (FR / AR / EN)
+   ========================================================================= */
+const TRANSLATIONS = {
+  fr: {
+    home: "Accueil",
+    how_it_works: "Comment ça marche",
+    find_pro: "Recherche pro",
+    my_space: "Mon espace",
+    login: "Connexion",
+    signup: "Créer un compte",
+    post_need: "Décrire mon besoin",
+    logout: "Se déconnecter",
+    notifications: "Notifications",
+    settings: "Paramètres",
+    appointments: "Rendez-vous",
+    messages: "Messages",
+    admin: "Administration",
+    hero_title: "Un problème chez vous ?<br/>Trouvez le bon professionnel.",
+    hero_sub: "Décrivez votre besoin, ajoutez quelques photos et recevez l'aide de professionnels qualifiés près de chez vous.",
+    hero_btn_need: "J'ai besoin d'un professionnel",
+    hero_btn_pro: "Je suis un professionnel",
+    verified_profiles: "Profils vérifiés",
+    growing_community: "Communauté grandissante",
+    all_trades: "Tous les métiers",
+    see_profile: "Voir le profil",
+    send_quote: "Envoyer un devis",
+    interested: "Je suis intéressé",
+    my_requests: "Mes demandes",
+    new_request: "Nouvelle demande",
+    pro_space: "Espace professionnel",
+    my_conversations: "Mes conversations",
+    all_conversations: "Toutes les conversations",
+    type_message: "Écrire un message...",
+    no_conversations: "Aucune conversation pour le moment.",
+    no_requests: "Vous n'avez pas encore publié de demande.",
+    no_feed: "Aucune nouvelle demande dans votre métier pour l'instant. Vérifiez que votre profil (Paramètres) précise bien vos métiers et votre ville.",
+    no_appointments: "Aucun rendez-vous pour l'instant.",
+    no_notifications: "Aucune notification.",
+    reviews: "Avis clients",
+    leave_review: "Laisser un avis",
+    about: "À propos",
+    faq: "FAQ",
+    cgu: "Conditions générales",
+    privacy: "Confidentialité",
+    contact: "Contact",
+    rights_reserved: "Tous droits réservés",
+    email: "Email",
+    password: "Mot de passe",
+    full_name: "Nom complet",
+    phone: "Téléphone",
+    iam_particulier: "Je suis un particulier",
+    iam_pro: "Je suis un professionnel",
+    already_account: "Déjà inscrit ?",
+    no_account_yet: "Pas encore de compte ?",
+    step: "Étape",
+    cancel: "Annuler",
+    back: "Retour",
+    continue: "Continuer",
+    publish_request: "Publier ma demande",
+    summary: "Récapitulatif",
+    exp_years: "ans d'expérience",
+    verified: "Vérifié",
+    back_to_search: "Retour à la recherche",
+    back_to_requests: "Retour à mes demandes",
+    interested_pros: "Professionnels intéressés",
+    quotes_received: "Devis reçus",
+    no_pros_yet: "Aucun professionnel ne s'est encore manifesté.",
+    no_quotes_yet: "Aucun devis pour l'instant.",
+    mark_completed: "Marquer les travaux comme terminés",
+    accept: "Accepter",
+    refuse: "Refuser",
+    estimated_duration: "Durée estimée",
+    total_quote: "Total du devis",
+    work_description: "Description des travaux",
+    labor_cost: "Main-d'œuvre (DA)",
+    materials_cost: "Matériaux (DA)",
+    other_fees: "Frais divers (DA)",
+    proposed_date: "Date proposée",
+    send_quote_btn: "Envoyer le devis",
+    rate_experience: "Merci de noter votre expérience",
+    publish_review: "Publier mon avis",
+    thank_you_review: "Merci pour votre avis",
+    thank_you_sub: "Votre retour aide les autres particuliers à choisir le bon professionnel.",
+    back_to_space: "Retour à mon espace",
+    save: "Enregistrer",
+    recent_users: "Utilisateurs récents",
+    verify: "Vérifier",
+    suspend: "Suspendre",
+    reactivate: "Réactiver",
+    portfolio: "Réalisations",
+    no_reviews_yet: "Pas encore d'avis.",
+    contact_pro_hint: "Pour contacter ce professionnel, publiez une demande dans son métier — il pourra alors se manifester et vous pourrez échanger directement.",
+    faq_title: "Questions fréquentes",
+    contact_title: "Contact",
+    your_message: "Votre message",
+    send: "Envoyer",
+    pro_for_every_need: "Un professionnel pour chaque besoin",
+    your_project_starts: "Votre projet commence ici.",
+    loading_categories: "Chargement des catégories...",
+    urgency_label: "Urgence",
+    budget_label: "Budget",
+    not_specified: "non précisé",
+    describe_experience: "Décrivez votre expérience...",
+    regarding_request: "Concernant votre demande terminée.",
+    access_space: "Accédez à votre espace BRICOLE.",
+    join_seconds: "Rejoignez BRICOLE en quelques secondes.",
+    min_chars: "8 caractères min.",
+    name_label: "Nom",
+    published_on: "Publiée le",
+    interested_count: "intéressé(s)",
+    quotes_count: "devis reçu(s)",
+    with_word: "avec",
+    message_btn: "Message",
+    verified_adj: "vérifié",
+    not_verified_adj: "non vérifié",
+    form_demo_msg: "Merci, votre message a été noté. (Formulaire de démonstration.)",
+    post_need_arrow: "Décrire mon besoin →",
+    operating_in: "intervenant sur",
+    your_region: "votre région",
+    address_private: "Votre adresse exacte ne sera jamais affichée publiquement.",
+    photo_demo_note: "L'envoi de fichiers réels nécessite un service de stockage externe — cette étape est simulée dans cette démo.",
+    create_my_account: "Créer mon compte",
+    connect_btn: "Se connecter",
+    no_matching_pros: "Aucun professionnel ne correspond pour l'instant.",
+    particuliers_stat: "Particuliers",
+    professionnels_stat: "Professionnels",
+    published_requests: "Demandes publiées",
+    completed_requests: "Demandes terminées",
+    revenue_da: "Chiffre d'affaires (DA)",
+    quotes_stat: "Nombre de devis"
+  },
+  ar: {
+    home: "الرئيسية",
+    how_it_works: "كيف يعمل",
+    find_pro: "دليل الحرفيين",
+    my_space: "حسابي",
+    login: "تسجيل الدخول",
+    signup: "إنشاء حساب",
+    post_need: "أطلب خدمة",
+    logout: "تسجيل الخروج",
+    notifications: "الإشعارات",
+    settings: "الإعدادات",
+    appointments: "المواعيد",
+    messages: "الرسائل",
+    admin: "لوحة الإدارة",
+    hero_title: "مشكل أو أشغال في منزلك؟<br/>اعثر على أفضل حرفي بالقرب منك.",
+    hero_sub: "صف احتياجاتك، أضف صوراً وتلقى عروض أسعار من أمهر الحرفيين والمهنيين المؤهلين بالقرب منك.",
+    hero_btn_need: "أحتاج إلى حرفي",
+    hero_btn_pro: "أنا حرفي / مهني",
+    verified_profiles: "حسابات مهنية موثقة",
+    growing_community: "مجتمع حرفي متنامي",
+    all_trades: "جميع المهن",
+    see_profile: "عرض الملف الشخصي",
+    send_quote: "إرسال عرض سعر",
+    interested: "أنا مهتم بالعمل",
+    my_requests: "طلباتي",
+    new_request: "طلب خدمة جديد",
+    pro_space: "فضاء المهنيين والحرفيين",
+    my_conversations: "محادثاتي",
+    all_conversations: "كل المحادثات",
+    type_message: "اكتب رسالة...",
+    no_conversations: "لا توجد أي محادثات حالياً.",
+    no_requests: "لم تنشر أي طلب بعد.",
+    no_feed: "لا توجد طلبات جديدة في تخصصك حالياً. تأكد من تحديد تخصصاتك ومدينتك في الإعدادات.",
+    no_appointments: "لا توجد مواعيد حالياً.",
+    no_notifications: "لا توجد إشعارات.",
+    reviews: "آراء وتقييمات العملاء",
+    leave_review: "كتابة تقييم",
+    about: "عن المنصة",
+    faq: "الأسئلة الشائعة",
+    cgu: "شروط الاستخدام",
+    privacy: "سياسة الخصوصية",
+    contact: "اتصل بنا",
+    rights_reserved: "جميع الحقوق محفوظة",
+    email: "البريد الإلكتروني",
+    password: "كلمة المرور",
+    full_name: "الاسم الكامل",
+    phone: "رقم الهاتف",
+    iam_particulier: "أنا صاحب منزل / خاص",
+    iam_pro: "أنا حرفي / محترف",
+    already_account: "لديك حساب بالفعل؟",
+    no_account_yet: "ليس لديك حساب بعد؟",
+    step: "خطوة",
+    cancel: "إلغاء",
+    back: "رجوع",
+    continue: "متابعة",
+    publish_request: "نشر الطلب الآن",
+    summary: "ملخص الطلب",
+    exp_years: "سنوات خبرة",
+    verified: "موثق",
+    back_to_search: "العودة للبحث",
+    back_to_requests: "العودة لطلباتي",
+    interested_pros: "الحرفيون المهتمون",
+    quotes_received: "عروض الأسعار المستلمة",
+    no_pros_yet: "لم يتواصل أي حرفي بعد.",
+    no_quotes_yet: "لا توجد عروض أسعار حالياً.",
+    mark_completed: "تأكيد إتمام الأشغال بنجاح",
+    accept: "قبول العرض",
+    refuse: "رفض",
+    estimated_duration: "المدة المتوقعة",
+    total_quote: "المبلغ الإجمالي",
+    work_description: "وصف الأشغال والمهام",
+    labor_cost: "اليد العاملة (دج)",
+    materials_cost: "المواد والقطع (دج)",
+    other_fees: "تكاليف أخرى (دج)",
+    proposed_date: "التاريخ المقترح",
+    send_quote_btn: "إرسال عرض السعر",
+    rate_experience: "يرجى تقييم جودة الخدمة",
+    publish_review: "نشر التقييم",
+    thank_you_review: "شكراً جزيلاً على تقييمك",
+    thank_you_sub: "تقييمك يساعد باقي المستخدمين على اختيار الحرفي المناسب بكل ثقة.",
+    back_to_space: "العودة لحسابي",
+    save: "حفظ التغييرات",
+    recent_users: "المستخدمون الجدد",
+    verify: "توثيق الحساب",
+    suspend: "تجميد",
+    reactivate: "إعادة تفعيل",
+    portfolio: "معرض الأعمال والمنجزات",
+    no_reviews_yet: "لا توجد تقييمات بعد.",
+    contact_pro_hint: "للتواصل مع هذا المهني، انشر طلبك في نفس تخصصه ليتمكن من مراسلتك وتقديم عرضه مباشرة.",
+    faq_title: "الأسئلة الأكثر شيوعاً",
+    contact_title: "اتصل بنا",
+    your_message: "رسالتك",
+    send: "إرسال الرسالة",
+    pro_for_every_need: "حرفي ومحترف لكل نوع من الأعمال",
+    your_project_starts: "مشروعك يبدأ هنا.",
+    loading_categories: "جاري تحميل التخصصات...",
+    urgency_label: "الاستعجال",
+    budget_label: "الميزانية",
+    not_specified: "غير محدد",
+    describe_experience: "صف تجربتك مع هذا الحرفي...",
+    regarding_request: "تقييم خدمة الطلب المكتمل.",
+    access_space: "قم بتسجيل الدخول إلى حسابك في بريكولي.",
+    join_seconds: "انضم إلى بريكولي في بضع ثوانٍ.",
+    min_chars: "8 أحرف على الأقل",
+    name_label: "الاسم",
+    published_on: "نُشر في",
+    interested_count: "مهتم(ون)",
+    quotes_count: "عرض (عروض) أسعار",
+    with_word: "مع",
+    message_btn: "مراسلة",
+    verified_adj: "موثّق",
+    not_verified_adj: "غير موثّق",
+    form_demo_msg: "شكراً، تم تسجيل رسالتك. (نموذج تجريبي.)",
+    post_need_arrow: "أطلب خدمة ←",
+    operating_in: "يعمل في",
+    your_region: "منطقتك",
+    address_private: "لن يتم عرض عنوانك بشكل علني أبداً.",
+    photo_demo_note: "إرسال الملفات الحقيقية يتطلب خدمة تخزين خارجية — هذه الخطوة تجريبية في هذا العرض.",
+    create_my_account: "إنشاء حسابي",
+    connect_btn: "تسجيل الدخول",
+    no_matching_pros: "لا يوجد أي حرفي مطابق حالياً.",
+    particuliers_stat: "الأفراد",
+    professionnels_stat: "المهنيون",
+    published_requests: "الطلبات المنشورة",
+    completed_requests: "الطلبات المكتملة",
+    revenue_da: "إجمالي الإيرادات (دج)",
+    quotes_stat: "عدد عروض الأسعار"
+  },
+  en: {
+    home: "Home",
+    how_it_works: "How it works",
+    find_pro: "Find a Pro",
+    my_space: "My Dashboard",
+    login: "Log in",
+    signup: "Sign up",
+    post_need: "Post a request",
+    logout: "Log out",
+    notifications: "Notifications",
+    settings: "Settings",
+    appointments: "Appointments",
+    messages: "Messages",
+    admin: "Admin",
+    hero_title: "A problem at home?<br/>Find the right professional.",
+    hero_sub: "Describe your need, add a few photos, and get help from qualified professionals near you.",
+    hero_btn_need: "I need a professional",
+    hero_btn_pro: "I am a professional",
+    verified_profiles: "Verified profiles",
+    growing_community: "Growing community",
+    all_trades: "All trades",
+    see_profile: "View profile",
+    send_quote: "Send a quote",
+    interested: "I'm interested",
+    my_requests: "My requests",
+    new_request: "New request",
+    pro_space: "Professional space",
+    my_conversations: "My conversations",
+    all_conversations: "All conversations",
+    type_message: "Type a message...",
+    no_conversations: "No conversations yet.",
+    no_requests: "You haven't posted any requests yet.",
+    no_feed: "No new requests in your specialty right now. Make sure your profile settings include your trades and city.",
+    no_appointments: "No appointments scheduled.",
+    no_notifications: "No notifications.",
+    reviews: "Customer reviews",
+    leave_review: "Leave a review",
+    about: "About",
+    faq: "FAQ",
+    cgu: "Terms of Service",
+    privacy: "Privacy Policy",
+    contact: "Contact",
+    rights_reserved: "All rights reserved",
+    email: "Email",
+    password: "Password",
+    full_name: "Full name",
+    phone: "Phone number",
+    iam_particulier: "I am an individual",
+    iam_pro: "I am a professional",
+    already_account: "Already registered?",
+    no_account_yet: "Don't have an account yet?",
+    step: "Step",
+    cancel: "Cancel",
+    back: "Back",
+    continue: "Continue",
+    publish_request: "Publish my request",
+    summary: "Summary",
+    exp_years: "years of experience",
+    verified: "Verified",
+    back_to_search: "Back to search",
+    back_to_requests: "Back to my requests",
+    interested_pros: "Interested professionals",
+    quotes_received: "Quotes received",
+    no_pros_yet: "No professionals have expressed interest yet.",
+    no_quotes_yet: "No quotes received yet.",
+    mark_completed: "Mark job as completed",
+    accept: "Accept",
+    refuse: "Decline",
+    estimated_duration: "Estimated duration",
+    total_quote: "Quote Total",
+    work_description: "Job description",
+    labor_cost: "Labor (DZD)",
+    materials_cost: "Materials (DZD)",
+    other_fees: "Other expenses (DZD)",
+    proposed_date: "Proposed date",
+    send_quote_btn: "Submit quote",
+    rate_experience: "Please rate your experience",
+    publish_review: "Submit review",
+    thank_you_review: "Thank you for your review",
+    thank_you_sub: "Your feedback helps other homeowners choose the best craftsman.",
+    back_to_space: "Back to dashboard",
+    save: "Save changes",
+    recent_users: "Recent users",
+    verify: "Verify",
+    suspend: "Suspend",
+    reactivate: "Reactivate",
+    portfolio: "Portfolio & Past Work",
+    no_reviews_yet: "No reviews yet.",
+    contact_pro_hint: "To contact this professional, post a job in their trade — they will be notified and can message you directly.",
+    faq_title: "Frequently Asked Questions",
+    contact_title: "Contact Us",
+    your_message: "Your message",
+    send: "Send message",
+    pro_for_every_need: "A professional for every need",
+    your_project_starts: "Your project starts here.",
+    loading_categories: "Loading categories...",
+    urgency_label: "Urgency",
+    budget_label: "Budget",
+    not_specified: "not specified",
+    describe_experience: "Describe your experience...",
+    regarding_request: "About your completed request.",
+    access_space: "Access your BRICOLE dashboard.",
+    join_seconds: "Join BRICOLE in seconds.",
+    min_chars: "8 characters min.",
+    name_label: "Name",
+    published_on: "Published on",
+    interested_count: "interested",
+    quotes_count: "quote(s) received",
+    with_word: "with",
+    message_btn: "Message",
+    verified_adj: "verified",
+    not_verified_adj: "not verified",
+    form_demo_msg: "Thank you, your message has been noted. (Demo form.)",
+    post_need_arrow: "Post a request →",
+    operating_in: "operating in",
+    your_region: "your area",
+    address_private: "Your exact address is never shown publicly.",
+    photo_demo_note: "Real file uploads require an external storage service — this step is simulated in this demo.",
+    create_my_account: "Create my account",
+    connect_btn: "Log in",
+    no_matching_pros: "No matching professionals found.",
+    particuliers_stat: "Individuals",
+    professionnels_stat: "Professionals",
+    published_requests: "Published requests",
+    completed_requests: "Completed requests",
+    revenue_da: "Revenue (DZD)",
+    quotes_stat: "Total quotes"
+  }
+};
+
+const STATUS_LABELS_I18N = {
+  fr: {
+    brouillon:"Brouillon", publiee:"Publiée", interesses:"Professionnels intéressés",
+    devis_recus:"Devis reçus", pro_selectionne:"Professionnel sélectionné",
+    en_cours:"Travaux en cours", terminee:"Terminée", annulee:"Annulée"
+  },
+  ar: {
+    brouillon:"مسودة", publiee:"منشور", interesses:"حرفيون مهتمون",
+    devis_recus:"عروض مستلمة", pro_selectionne:"تم اختيار الحرفي",
+    en_cours:"الأشغال جارية", terminee:"مكتملة", annulee:"ملغاة"
+  },
+  en: {
+    brouillon:"Draft", publiee:"Published", interesses:"Interested Pros",
+    devis_recus:"Quotes Received", pro_selectionne:"Pro Selected",
+    en_cours:"Work in Progress", terminee:"Completed", annulee:"Cancelled"
+  }
+};
+
+function getStatusLabel(s) {
+  const lang = state.lang || 'fr';
+  return (STATUS_LABELS_I18N[lang] && STATUS_LABELS_I18N[lang][s]) || STATUS_LABELS_I18N.fr[s] || s;
+}
+
+const CHOICES_I18N = {
+  fr: {
+    besoins: ["Réparer un problème","Rénover","Installer","Entretenir","Construire","Bricoler","Autre"],
+    urgences: ["Pas urgent","Cette semaine","Dès que possible","Urgent"],
+    budgets: ["Je ne sais pas","Moins de 5 000 DA","Entre 5 000 et 20 000 DA","Plus de 20 000 DA"],
+    criteres: [["qualite","Qualité"],["ponctualite","Ponctualité"],["prix","Prix"],["communication","Communication"],["professionnalisme","Professionnalisme"]],
+    wizardQ: {
+      q1: "Que souhaitez-vous faire ?",
+      q2: "Quel métier recherchez-vous ?",
+      q3: "Décrivez votre besoin en détail",
+      q3Sub: "Plus vous donnez de détails, plus les propositions seront précises.",
+      q3Ph: "Ex : Mon chauffe-eau fuit depuis 2 jours au niveau du raccord...",
+      q4: "Ajoutez des photos (optionnel)",
+      q4Sub: "Des photos aident le professionnel à préparer son intervention.",
+      q4Btn: "Ajouter une photo",
+      q5: "Où se situe le chantier ?",
+      q5City: "Ville (ex : Alger, Oran, Blida...)",
+      q5Zip: "Code postal (optionnel)",
+      q6: "Quel est votre budget ?",
+      q7: "À quel point est-ce urgent ?",
+      q8: "Quand êtes-vous disponible ?",
+      q8Sub: "Pour organiser la visite du professionnel.",
+      q8Ph: "Ex : en semaine après 17h, week-end toute la journée",
+      q9: "Récapitulatif",
+      q9AuthWarning: "Vous devrez vous connecter (ou créer un compte particulier) pour publier cette demande.",
+      rows: ["Type de travaux", "Métier", "Description", "Photos", "Localisation", "Budget", "Urgence", "Disponibilité"]
+    }
+  },
+  ar: {
+    besoins: ["إصلاح عطل أو مشكل","تجديد وترميم","تركيب وتثبيت","صيانة دورية","بناء وإنشاء","أعمال صيانة خفيفة","أخرى"],
+    urgences: ["غير عاجل","خلال هذا الأسبوع","في أقرب وقت ممكن","عاجل جداً"],
+    budgets: ["لا أعلم بالضبط","أقل من 5,000 دج","بين 5,000 و 20,000 دج","أكثر من 20,000 دج"],
+    criteres: [["qualite","جودة العمل"],["ponctualite","الالتزام بالمواعيد"],["prix","مناسبة السعر"],["communication","التواصل"],["professionnalisme","الاحترافية والإتقان"]],
+    wizardQ: {
+      q1: "ما هو نوع الخدمة أو الأشغال المطلوبة؟",
+      q2: "ما هو التخصص الحرفي الذي تبحث عنه؟",
+      q3: "صف احتياجاتك بالتفصيل",
+      q3Sub: "كلما كان الوصف دقيقاً، كلما كانت عروض الأسعار والحلول المقدمة أكثر ملائمة.",
+      q3Ph: "مثال: تسرب ماء تحت حوض المطبخ يتطلب تغيير الأنبوب...",
+      q4: "أضف صوراً للمشكل أو المكان (اختياري)",
+      q4Sub: "تساعد الصور الحرفي على تشخيص المشكلة واقتراح الحلول المناسبة.",
+      q4Btn: "إضافة صورة",
+      q5: "أين يقع موقع الأشغال أو المنزل؟",
+      q5City: "المدينة أو البلدية (مثل: الجزائر، وهران، البليدة...)",
+      q5Zip: "الرمز البريدي (اختياري)",
+      q6: "ما هي ميزانيتك المقترحة؟",
+      q7: "ما مدى استعجال الخدمة؟",
+      q8: "متى تكون متاحاً لاستقبال الحرفي أو المعاينة؟",
+      q8Sub: "لتنظيم موعد المعاينة وبدء الأشغال بسهولة.",
+      q8Ph: "مثال: خلال أيام الأسبوع بعد الساعة 5 مساءً، أو نهاية الأسبوع",
+      q9: "ملخص الطلب قبل النشر",
+      q9AuthWarning: "يجب تسجيل الدخول أو إنشاء حساب خاص لنشر هذا الطلب.",
+      rows: ["نوع الأشغال", "التخصص", "الوصف", "الصور", "الموقع", "الميزانية", "درجة الاستعجال", "أوقات التوفر"]
+    }
+  },
+  en: {
+    besoins: ["Repair a problem","Renovate","Install","Maintain","Build & Construct","Handyman tasks","Other"],
+    urgences: ["Not urgent","This week","As soon as possible","Urgent"],
+    budgets: ["I don't know","Less than 5,000 DZD","Between 5,000 & 20,000 DZD","More than 20,000 DZD"],
+    criteres: [["qualite","Work Quality"],["ponctualite","Punctuality"],["prix","Price & Value"],["communication","Communication"],["professionnalisme","Professionalism"]],
+    wizardQ: {
+      q1: "What do you need help with?",
+      q2: "Which trade are you looking for?",
+      q3: "Describe your project or repair in detail",
+      q3Sub: "The more details you provide, the more accurate the quotes will be.",
+      q3Ph: "E.g., Water leakage under the kitchen sink needing pipe replacement...",
+      q4: "Add photos (optional)",
+      q4Sub: "Photos help craftsmen understand the scope of work before arriving.",
+      q4Btn: "Add a photo",
+      q5: "Where is the work located?",
+      q5City: "City (e.g. Algiers, Oran, Blida...)",
+      q5Zip: "Postal code (optional)",
+      q6: "What is your approximate budget?",
+      q7: "How urgent is this request?",
+      q8: "When are you available for a visit?",
+      q8Sub: "To arrange an on-site visit or estimate.",
+      q8Ph: "E.g., Weekdays after 5 PM, or all day on weekends",
+      q9: "Review and Summary",
+      q9AuthWarning: "You will need to log in (or create a homeowner account) to publish this request.",
+      rows: ["Project type", "Trade", "Description", "Photos", "Location", "Budget", "Urgency", "Availability"]
+    }
+  }
+};
+
+const FAQ_I18N = {
+  fr: [
+    ["Combien coûte l'utilisation de BRICOLE ?", "La publication d'une demande et la mise en relation sont gratuites pour les particuliers. Les professionnels souscrivent à un abonnement pour recevoir des demandes."],
+    ["Comment sont vérifiés les professionnels ?", "Chaque professionnel fournit ses documents d'activité, qui sont contrôlés avant l'obtention du badge « Vérifié »."],
+    ["Puis-je annuler une demande ?", "Oui, à tout moment depuis votre tableau de bord, tant qu'aucun professionnel n'a été sélectionné."],
+    ["Comment mes coordonnées sont-elles protégées ?", "Votre adresse exacte n'est jamais visible publiquement ; seule une zone approximative est communiquée avant l'acceptation d'un devis."]
+  ],
+  ar: [
+    ["كم تكلفة استخدام بريكولي؟", "نشر الطلبات والتواصل مجاني لأصحاب المنازل. يشترك المهنيون في باقة لاستقبال الطلبات."],
+    ["كيف يتم توثيق حسابات المهنيين؟", "يقوم كل مهني بتقديم وثائق نشاطه، والتي يتم التحقق منها قبل منحه شارة «موثّق»."],
+    ["هل يمكنني إلغاء الطلب؟", "نعم، في أي وقت من لوحة التحكم، طالما لم يتم اختيار أي حرفي."],
+    ["كيف تتم حماية بياناتي؟", "لن يتم عرض عنوانك الدقيق للعامة أبداً؛ يتم فقط عرض منطقة تقريبية قبل قبول العرض."]
+  ],
+  en: [
+    ["How much does BRICOLE cost?", "Posting a request and connecting is free for individuals. Professionals subscribe to a plan to receive requests."],
+    ["How are professionals verified?", "Each professional provides their business documents, which are verified before receiving the 'Verified' badge."],
+    ["Can I cancel a request?", "Yes, at any time from your dashboard, as long as no professional has been selected."],
+    ["How is my contact info protected?", "Your exact address is never publicly visible; only an approximate area is shared before a quote is accepted."]
+  ]
+};
+
+const CGU_I18N = {
+  fr: {
+    title: "Conditions générales d'utilisation",
+    paragraphs: [
+      "L'utilisation de BRICOLE implique l'acceptation pleine et entière des présentes conditions générales.",
+      "BRICOLE agit en tant qu'intermédiaire de mise en relation et n'est pas partie aux contrats conclus entre particuliers et professionnels.",
+      "Chaque utilisateur s'engage à fournir des informations exactes et à respecter les autres membres de la plateforme."
+    ]
+  },
+  ar: {
+    title: "شروط الاستخدام العام",
+    paragraphs: [
+      "استخدام منصة بريكولي يعني القبول التام بهذه الشروط والأحكام.",
+      "تعمل بريكولي كوسيط للتواصل وليست طرفاً في العقود المبرمة بين الأفراد والمهنيين.",
+      "يلتزم كل مستخدم بتقديم معلومات دقيقة واحترام الأعضاء الآخرين في المنصة."
+    ]
+  },
+  en: {
+    title: "Terms of Service",
+    paragraphs: [
+      "Using BRICOLE implies full acceptance of these terms and conditions.",
+      "BRICOLE acts as a matchmaking intermediary and is not a party to contracts concluded between individuals and professionals.",
+      "Each user agrees to provide accurate information and respect other members of the platform."
+    ]
+  }
+};
+
+const PRIVACY_I18N = {
+  fr: {
+    title: "Politique de confidentialité",
+    paragraphs: [
+      "BRICOLE collecte uniquement les données nécessaires à la mise en relation entre particuliers et professionnels.",
+      "Les coordonnées exactes d'un particulier ne sont jamais partagées publiquement.",
+      "Vous pouvez à tout moment demander l'accès, la rectification ou la suppression de vos données personnelles."
+    ]
+  },
+  ar: {
+    title: "سياسة الخصوصية",
+    paragraphs: [
+      "تجمع بريكولي فقط البيانات الضرورية للتواصل بين الأفراد والمهنيين.",
+      "لا يتم مشاركة بيانات الاتصال الدقيقة لأي فرد بشكل علني أبداً.",
+      "يمكنك في أي وقت طلب الوصول أو التعديل أو الحذف لبياناتك الشخصية."
+    ]
+  },
+  en: {
+    title: "Privacy Policy",
+    paragraphs: [
+      "BRICOLE only collects data necessary for connecting individuals and professionals.",
+      "An individual's exact contact details are never shared publicly.",
+      "You can request access to, rectification of, or deletion of your personal data at any time."
+    ]
+  }
+};
+
+const COMMENT_I18N = {
+  fr: [
+    ["Décrivez votre besoin", "Sélectionnez le type de travaux et expliquez votre problème en quelques phrases."],
+    ["Ajoutez des photos", "Une ou plusieurs photos aident le professionnel à préparer son intervention."],
+    ["Recevez des propositions", "Les professionnels disponibles dans votre zone vous envoient un message ou un devis."],
+    ["Choisissez et échangez", "Comparez les profils et devis, discutez par messagerie, puis fixez un rendez-vous."]
+  ],
+  ar: [
+    ["صف احتياجاتك", "حدد نوع الأشغال واشرح مشكلتك ببضع جمل."],
+    ["أضف صوراً", "صورة أو أكثر تساعد المهني على الاستعداد للتدخل."],
+    ["تلقى المقترحات", "يرسل المهنيون المتاحون في منطقتك رسالة أو عرض سعر."],
+    ["اختر وتواصل", "قارن بين الملفات الشخصية وعروض الأسعار، تحدث عبر الرسائل، ثم حدد موعداً."]
+  ],
+  en: [
+    ["Describe your need", "Select the type of work and explain your problem in a few sentences."],
+    ["Add photos", "One or more photos help the professional prepare for the job."],
+    ["Receive proposals", "Available professionals in your area will send a message or quote."],
+    ["Choose and communicate", "Compare profiles and quotes, chat via messaging, then schedule an appointment."]
+  ]
+};
+
+const ADMIN_LABELS_I18N = {
+  fr: [
+    "Particuliers", "Professionnels", "Demandes publiées",
+    "Demandes terminées", "Chiffre d'affaires (DA)", "Nombre de devis"
+  ],
+  ar: [
+    "الأفراد", "المهنيون", "الطلبات المنشورة",
+    "الطلبات المكتملة", "إجمالي الإيرادات (دج)", "عدد عروض الأسعار"
+  ],
+  en: [
+    "Individuals", "Professionals", "Published requests",
+    "Completed requests", "Revenue (DZD)", "Total quotes"
+  ]
+};
+
+function getChoices() {
+  const lang = state.lang || 'fr';
+  return CHOICES_I18N[lang] || CHOICES_I18N.fr;
+}
+
+function t(key, fallback) {
+  const lang = state.lang || "fr";
+  if (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) return TRANSLATIONS[lang][key];
+  if (TRANSLATIONS["fr"] && TRANSLATIONS["fr"][key]) return TRANSLATIONS["fr"][key];
+  return fallback || key;
+}
+
+function setLang(code) {
+  state.lang = code;
+  localStorage.setItem("bricole_lang", code);
+  document.documentElement.lang = code;
+  document.documentElement.dir = code === "ar" ? "rtl" : "ltr";
+  render();
+}
+
+function renderLangSwitcher() {
+  const langs = [
+    { code: "fr", label: "FR" },
+    { code: "ar", label: "عربي" },
+    { code: "en", label: "EN" }
+  ];
+  return `
+  <div class="flex items-center rounded-lg bg-slate-100 p-0.5 text-xs font-semibold">
+    ${langs.map(l => `
+      <button onclick="setLang('${l.code}')" class="px-2 py-1 rounded-md transition-all ${state.lang === l.code ? 'bg-white text-blue-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'}">
+        ${l.label}
+      </button>
+    `).join('')}
+  </div>`;
+}
+
+/* =========================================================================
+   CONFIGURATION — à modifier avant publication
+   ========================================================================= */
+const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:"
+  ? "http://localhost:3001/api"
+  : "https://bricole-backend.onrender.com/api";
+
+/* =========================================================================
+   État de l'application
+   ========================================================================= */
+let state = {
+  lang: localStorage.getItem("bricole_lang") || "fr",
+  view: "home",
+  menuOpen: false,
+  authType: "particulier",
+  authError: "",
+  authLoading: false,
+
+  token: localStorage.getItem("bricole_token") || null,
+  user: null,          // rempli via /auth/me au démarrage si un token existe
+  sessionChecked: false,
+
+  categories: [],
+
+  selectedProId: null,
+  selectedRequestId: null,
+  selectedConversationId: null,
+
+  wizardStep: 1,
+  wizardData: {besoin:"",categoryId:null,categoryName:"",description:"",photos:0,ville:"",codePostal:"",budget:"",urgence:"",disponibilite:""},
+  wizardSubmitting: false,
+  wizardError: "",
+
+  reviewDraft: {qualite:0,ponctualite:0,prix:0,communication:0,professionnalisme:0,commentaire:""},
+
+  // caches de données chargées depuis l'API, avec indicateurs de chargement/erreur par domaine
+  loading: {},
+  errors: {},
+  myRequests: [],
+  feed: [],
+  professionals: [],
+  professionalDetail: null,
+  requestDetail: null,
+  requestProposals: [],
+  requestQuotes: [],
+  conversations: [],
+  messages: [],
+  appointments: [],
+  notifications: [],
+  adminStats: null,
+  adminUsers: [],
+  searchMetier: "Tous les métiers",
+  quoteForm: {requestId:null, description:"", mainOeuvre:"", materiaux:"", frais:"", dureeEstimee:"", dateProposee:""}
+};
+
+/* =========================================================================
+   Client API
+   ========================================================================= */
+async function apiFetch(path, { method = "GET", body, auth = true } = {}) {
+  const headers = { "Content-Type": "application/json" };
+  if (auth && state.token) headers.Authorization = `Bearer ${state.token}`;
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (networkErr) {
+    throw new Error("Impossible de joindre le serveur. Vérifiez votre connexion ou l'URL du backend (API_BASE).");
+  }
+
+  let data = {};
+  try { data = await response.json(); } catch (_) { /* réponse vide (ex: 204) */ }
+
+  if (!response.ok) {
+    throw new Error(data.error || `Erreur ${response.status}`);
+  }
+  return data;
+}
+
+function saveSession(token, user) {
+  state.token = token;
+  state.user = user;
+  localStorage.setItem("bricole_token", token);
+}
+function clearSession() {
+  state.token = null;
+  state.user = null;
+  state.conversations = [];
+  state.conversationsLoaded = false;
+  state.messages = [];
+  state.selectedConversationId = null;
+  state.myRequests = [];
+  state.feed = [];
+  state.appointments = [];
+  state.notifications = [];
+  localStorage.removeItem("bricole_token");
+}
+
+function setView(v){
+  state.authError = "";
+  state.wizardError = "";
+  state.view = v;
+  window.scrollTo(0,0);
+  render();
+}
+function toggleMenu(){ state.menuOpen = !state.menuOpen; render(); }
+function icon(name, cls){ return `<i data-lucide="${name}" class="${cls||''}"></i>`; }
+function stars(note){
+  let s = "";
+  for(let i=1;i<=5;i++){
+    s += `<i data-lucide="star" class="w-3.5 h-3.5 ${i<=Math.round(note||0) ? 'fill-orange-400 text-orange-400' : 'fill-slate-200 text-slate-200'}"></i>`;
+  }
+  return `<div class="flex items-center gap-0.5">${s}</div>`;
+}
+function initialsOf(name){ return (name||"?").split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase(); }
+function spinner(){ return `<div class="flex justify-center py-16">${icon('loader-2','w-6 h-6 text-slate-300 spin')}</div>`; }
+function errorBox(msg){ return `<div class="bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg p-4">${msg}</div>`; }
+function fmtDate(d){ 
+  const locales = { fr: "fr-FR", ar: "ar-DZ", en: "en-US" };
+  const locale = locales[state.lang] || "fr-FR";
+  return new Date(d).toLocaleDateString(locale, {day:"numeric", month:"long"}); 
+}
+function fmtDateTime(d){ 
+  const locales = { fr: "fr-FR", ar: "ar-DZ", en: "en-US" };
+  const locale = locales[state.lang] || "fr-FR";
+  return new Date(d).toLocaleString(locale, {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"}); 
+}
+
+const STATUS_LABELS = {
+  brouillon:"Brouillon", publiee:"Publiée", interesses:"Professionnels intéressés",
+  devis_recus:"Devis reçus", pro_selectionne:"Professionnel sélectionné",
+  en_cours:"Travaux en cours", terminee:"Terminée", annulee:"Annulée"
+};
+const STATUS_STYLES = {
+  brouillon:"bg-slate-100 text-slate-600", publiee:"bg-blue-100 text-blue-800",
+  interesses:"bg-orange-100 text-orange-700", devis_recus:"bg-purple-100 text-purple-700",
+  pro_selectionne:"bg-teal-100 text-teal-700", en_cours:"bg-teal-100 text-teal-700",
+  terminee:"bg-green-100 text-green-700", annulee:"bg-red-100 text-red-700"
+};
+
+const BESOINS = ["Réparer un problème","Rénover","Installer","Entretenir","Construire","Bricoler","Autre"];
+const URGENCES = ["Pas urgent","Cette semaine","Dès que possible","Urgent"];
+const BUDGETS = ["Je ne sais pas","Moins de 5 000 DA","Entre 5 000 et 20 000 DA","Plus de 20 000 DA"];
+
+/* =========================================================================
+   Démarrage : restaurer la session + charger les catégories
+   ========================================================================= */
+async function init(){
+  const lang = state.lang || "fr";
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+
+  try {
+    const { categories } = await apiFetch("/categories", { auth:false });
+    state.categories = categories;
+  } catch(e) { state.errors.categories = e.message; }
+
+  if (state.token) {
+    try {
+      const { user } = await apiFetch("/auth/me");
+      state.user = user;
+    } catch(e) {
+      clearSession(); // token invalide/expiré
+    }
+  }
+  state.sessionChecked = true;
+  render();
+}
+
+/* =========================================================================
+   Authentification
+   ========================================================================= */
+function setAuthType(t){ state.authType = t; state.authError = ""; render(); }
+
+async function doLogin(email, password){
+  state.authError = ""; state.authLoading = true; render();
+  try {
+    const { token, user } = await apiFetch("/auth/login", { method:"POST", auth:false, body:{ email, password } });
+    saveSession(token, user);
+    state.authLoading = false;
+    goToDashboard();
+  } catch(e){
+    state.authError = e.message; state.authLoading = false; render();
+  }
+}
+
+async function doRegister(fields){
+  state.authError = ""; state.authLoading = true; render();
+  try {
+    const { token, user } = await apiFetch("/auth/register", { method:"POST", auth:false, body:{
+      fullName: fields.fullName, email: fields.email, password: fields.password,
+      role: state.authType, phone: fields.phone
+    }});
+    saveSession(token, user);
+    state.authLoading = false;
+    goToDashboard();
+  } catch(e){
+    state.authError = e.message; state.authLoading = false; render();
+  }
+}
+
+function logout(){ clearSession(); setView("home"); }
+
+function goToDashboard(){
+  setView("dashboard");
+  if (state.user.role === "particulier") loadMyRequests();
+  else if (state.user.role === "pro") loadFeed();
+  loadNotifications();
+}
+
+function requireLogin(role){
+  if (!state.user) { setView("login"); return false; }
+  if (role && state.user.role !== role) { setView("dashboard"); return false; }
+  return true;
+}
+
+/* =========================================================================
+   Chargement des données (par domaine)
+   ========================================================================= */
+async function loadMyRequests(){
+  state.loading.myRequests = true; render();
+  try { state.myRequests = (await apiFetch("/requests/mine")).requests; }
+  catch(e){ state.errors.myRequests = e.message; }
+  state.loading.myRequests = false; render();
+}
+
+async function loadFeed(){
+  state.loading.feed = true; render();
+  try { state.feed = (await apiFetch("/requests/feed")).requests; }
+  catch(e){ state.errors.feed = e.message; }
+  state.loading.feed = false; render();
+}
+
+async function loadProfessionals(){
+  state.loading.professionals = true; state.professionalsLoaded = true; render();
+  try {
+    const params = new URLSearchParams();
+    if (state.searchMetier !== "Tous les métiers") params.set("category", state.searchMetier);
+    state.professionals = (await apiFetch(`/professionals?${params.toString()}`, { auth:false })).professionals || [];
+  } catch(e){ state.errors.professionals = e.message; }
+  state.loading.professionals = false; render();
+}
+function setSearchMetier(m){ state.searchMetier = m; state.professionalsLoaded = false; loadProfessionals(); }
+
+async function loadProfessionalDetail(id){
+  state.selectedProId = id; state.professionalDetail = null;
+  state.loading.professionalDetail = true; render();
+  try { state.professionalDetail = await apiFetch(`/professionals/${id}`, { auth:false }); }
+  catch(e){ state.errors.professionalDetail = e.message; }
+  state.loading.professionalDetail = false; render();
+}
+
+async function loadRequestDetail(id){
+  state.selectedRequestId = id;
+  state.loading.requestDetail = true; render();
+  try {
+    state.requestDetail = await apiFetch(`/requests/${id}`);
+    state.requestProposals = (await apiFetch(`/requests/${id}/proposals`)).proposals;
+    state.requestQuotes = (await apiFetch(`/requests/${id}/quotes`)).quotes;
+  } catch(e){ state.errors.requestDetail = e.message; }
+  state.loading.requestDetail = false; render();
+}
+
+async function loadConversations(){
+  state.loading.conversations = true; state.conversationsLoaded = true; render();
+  try { state.conversations = (await apiFetch("/conversations")).conversations || []; }
+  catch(e){ state.errors.conversations = e.message; }
+  state.loading.conversations = false; render();
+}
+
+async function loadMessages(conversationId){
+  state.selectedConversationId = conversationId;
+  state.loading.messages = true; render();
+  try {
+    const res = await apiFetch(`/conversations/${conversationId}/messages`);
+    state.messages = res.messages || [];
+    let conv = state.conversations.find(c => c.id === conversationId);
+    if (!conv) {
+      try {
+        const convRes = await apiFetch(`/conversations/${conversationId}`);
+        if (convRes && convRes.conversation) {
+          state.conversations.push(convRes.conversation);
+        }
+      } catch(_) {}
+    }
+  }
+  catch(e){ state.errors.messages = e.message; }
+  state.loading.messages = false; render();
+  setTimeout(() => {
+    const box = document.getElementById("msgBox");
+    if (box) box.scrollTop = box.scrollHeight;
+  }, 50);
+}
+
+async function loadAppointments(){
+  state.loading.appointments = true; render();
+  try { state.appointments = (await apiFetch("/appointments")).appointments; }
+  catch(e){ state.errors.appointments = e.message; }
+  state.loading.appointments = false; render();
+}
+
+async function loadNotifications(){
+  try { state.notifications = (await apiFetch("/notifications")).notifications; render(); }
+  catch(e){ /* silencieux : ne bloque pas le reste de l'UI */ }
+}
+
+async function loadAdmin(){
+  state.loading.admin = true; render();
+  try {
+    state.adminStats = await apiFetch("/admin/stats");
+    state.adminUsers = (await apiFetch("/admin/users")).users;
+  } catch(e){ state.errors.admin = e.message; }
+  state.loading.admin = false; render();
+}
+
+/* =========================================================================
+   Actions
+   ========================================================================= */
+async function exprimerInteret(requestId){
+  try {
+    await apiFetch(`/requests/${requestId}/proposals`, { method:"POST", body:{ message:"Je suis disponible pour ce chantier." } });
+    loadFeed();
+  } catch(e){ alert(e.message); }
+}
+
+async function decideQuote(quoteId, decision){
+  try {
+    await apiFetch(`/quotes/${quoteId}/decision`, { method:"PATCH", body:{ decision } });
+    loadRequestDetail(state.selectedRequestId);
+  } catch(e){ alert(e.message); }
+}
+
+async function markRequestComplete(requestId){
+  try {
+    await apiFetch(`/requests/${requestId}/complete`, { method:"PATCH" });
+    loadRequestDetail(requestId);
+  } catch(e){ alert(e.message); }
+}
+
+async function sendMessage(){
+  const input = document.getElementById("msgInput");
+  if (!input || !input.value.trim()) return;
+  const content = input.value.trim();
+  try {
+    input.value = "";
+    await apiFetch(`/conversations/${state.selectedConversationId}/messages`, { method:"POST", body:{ content } });
+    await loadMessages(state.selectedConversationId);
+  } catch(e){ alert(e.message); }
+}
+
+async function openConversationForProposal(requestId, professionalId){
+  try {
+    const { conversation } = await apiFetch("/conversations/open", {
+      method: "POST",
+      body: { requestId, professionalId }
+    });
+    if (!conversation) { alert("Impossible d'ouvrir la conversation."); return; }
+    
+    const idx = state.conversations.findIndex(c => c.id === conversation.id);
+    if (idx >= 0) state.conversations[idx] = conversation;
+    else state.conversations.unshift(conversation);
+
+    setView("messaging");
+    await loadMessages(conversation.id);
+  } catch(e){ alert(e.message); }
+}
+
+function openQuoteForm(requestId){
+  state.quoteForm = {requestId, description:"", mainOeuvre:"", materiaux:"", frais:"", dureeEstimee:"", dateProposee:""};
+  setView("quoteForm");
+}
+async function submitQuote(){
+  const q = state.quoteForm;
+  if (!q.description || !q.mainOeuvre || !q.materiaux) { alert("Veuillez remplir la description, la main-d'œuvre et les matériaux."); return; }
+  try {
+    await apiFetch(`/requests/${q.requestId}/quotes`, { method:"POST", body:{
+      description: q.description, mainOeuvre: parseFloat(q.mainOeuvre), materiaux: parseFloat(q.materiaux),
+      frais: parseFloat(q.frais || 0), dureeEstimee: q.dureeEstimee, dateProposee: q.dateProposee || undefined
+    }});
+    setView("dashboard"); loadFeed();
+  } catch(e){ alert(e.message); }
+}
+
+function setReviewScore(field, val){ state.reviewDraft[field] = val; render(); }
+async function submitReview(requestId){
+  const d = state.reviewDraft;
+  if (!d.qualite || !d.ponctualite || !d.prix || !d.communication || !d.professionnalisme) {
+    alert("Merci de noter les cinq critères."); return;
+  }
+  try {
+    await apiFetch("/reviews", { method:"POST", body:{ requestId, ...d } });
+    state.reviewDraft = {qualite:0,ponctualite:0,prix:0,communication:0,professionnalisme:0,commentaire:"",submitted:true};
+    render();
+  } catch(e){ alert(e.message); }
+}
+
+async function markNotificationRead(id){
+  try { await apiFetch(`/notifications/${id}/read`, { method:"PATCH" }); loadNotifications(); }
+  catch(e){ /* silencieux */ }
+}
+
+async function suspendUser(id, suspended){
+  try { await apiFetch(`/admin/users/${id}/suspend`, { method:"PATCH", body:{ suspended } }); loadAdmin(); }
+  catch(e){ alert(e.message); }
+}
+async function verifyPro(id, verified){
+  try { await apiFetch(`/admin/professionals/${id}/verify`, { method:"PATCH", body:{ verified } }); loadAdmin(); }
+  catch(e){ alert(e.message); }
+}
+
+/* =========================================================================
+   Assistant (Wizard) de publication de demande
+   ========================================================================= */
+const WIZARD_TOTAL = 9;
+function wizardSet(field, val, extra){ state.wizardData[field] = val; if(extra) Object.assign(state.wizardData, extra); render(); }
+function wizardChoiceGroup(field, options, cols){
+  return `<div class="grid grid-cols-${cols} gap-3">
+    ${options.map(o=>`
+      <button onclick="wizardSet('${field}','${o.replace(/'/g,"\\'")}')" class="text-sm font-medium text-left px-4 py-3.5 rounded-lg border transition-colors ${state.wizardData[field]===o?'border-orange-500 bg-orange-50 text-orange-700':'border-slate-200 text-slate-600 hover:border-slate-300'}">${o}</button>`).join("")}
+  </div>`;
+}
+function wizardCanNext(){
+  const d = state.wizardData, s = state.wizardStep;
+  if(s===1) return !!d.besoin;
+  if(s===2) return !!d.categoryId;
+  if(s===3) return d.description.trim().length > 9;
+  if(s===5) return !!d.ville;
+  if(s===6) return !!d.budget;
+  if(s===7) return !!d.urgence;
+  return true;
+}
+function wizardNext(){ if(wizardCanNext()) state.wizardStep = Math.min(state.wizardStep+1, WIZARD_TOTAL); render(); }
+function wizardPrev(){ state.wizardStep = Math.max(state.wizardStep-1, 1); render(); }
+function wizardUpdateText(field, val){ state.wizardData[field] = val; }
+function wizardAddPhoto(){ state.wizardData.photos++; render(); }
+
+async function publierDemande(){
+  if (!requireLogin("particulier")) { alert("Connectez-vous en tant que particulier pour publier une demande."); setView("login"); return; }
+  const d = state.wizardData;
+  state.wizardSubmitting = true; state.wizardError = ""; render();
+  try {
+    await apiFetch("/requests", { method:"POST", body:{
+      typeBesoin: d.besoin, categoryId: d.categoryId, description: d.description,
+      ville: d.ville, codePostal: d.codePostal, budget: d.budget, urgence: d.urgence,
+      disponibilite: d.disponibilite, photoUrls: []
+    }});
+    state.wizardStep = 1;
+    state.wizardData = {besoin:"",categoryId:null,categoryName:"",description:"",photos:0,ville:"",codePostal:"",budget:"",urgence:"",disponibilite:""};
+    state.wizardSubmitting = false;
+    goToDashboard();
+  } catch(e){
+    state.wizardError = e.message; state.wizardSubmitting = false; render();
+  }
+}
+
+function brandLogo(isDark = false) {
+  const textColor = isDark ? "text-white" : "text-blue-950";
+  const subColor = isDark ? "text-orange-300" : "text-orange-600";
+  const arabicColor = isDark ? "text-slate-300" : "text-slate-400";
+  return `
+  <div class="flex items-center gap-2.5 group">
+    <div class="relative w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 p-2 shadow-md shadow-orange-500/20 group-hover:scale-105 transition-all flex items-center justify-center">
+      <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 10L12 3L21 10V20C21 20.5523 20.5523 21 20 21H15V15C15 14.4477 14.5523 14 14 14H10C9.44772 14 9 14.4477 9 15V21H4C3.44772 21 3 20.5523 3 20V10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 7.5V11.5M10.5 9L13.5 10M13.5 9L10.5 10" stroke="#ffedd5" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="leading-tight text-left">
+      <div class="text-xl font-extrabold tracking-tight ${textColor} font-display flex items-center">
+        <span>BRIC</span><span class="text-orange-500">OLE</span>
+      </div>
+      <div class="flex items-center gap-1.5 text-[10px] font-semibold tracking-wider uppercase ${subColor}">
+        <span>Services Pro</span>
+        <span class="${arabicColor}" dir="rtl">· بريكولي</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   Header
+   ========================================================================= */
+function renderHeader(){
+  const navItem = (label, target) => `
+    <button onclick="setView('${target}')" class="text-sm font-medium transition-colors ${state.view===target?'text-blue-950 font-semibold':'text-slate-500 hover:text-blue-950'}">${label}</button>`;
+  const unread = state.notifications.filter(n=>!n.is_read).length;
+  return `
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-100 shadow-sm">
+    <div class="max-w-6xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
+      <button onclick="setView('home')" class="flex items-center">
+        ${brandLogo(false)}
+      </button>
+      <nav class="hidden md:flex items-center gap-7">
+        ${navItem(t("home"), "home")}
+        ${navItem(t("how_it_works"), "comment")}
+        ${navItem(t("find_pro"), "search")}
+        ${state.user ? navItem(t("my_space"), "dashboard") : ""}
+      </nav>
+      <div class="hidden md:flex items-center gap-3">
+        ${renderLangSwitcher()}
+        ${state.user ? `
+          <button onclick="setView('notifications');loadNotifications()" class="relative p-2 rounded-lg hover:bg-slate-100">
+            ${icon('bell','w-5 h-5 text-blue-950')}
+            ${unread>0 ? `<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-500"></span>` : ""}
+          </button>
+          <button onclick="setView('settings')" class="text-sm font-semibold px-4 py-2 rounded-lg text-blue-950 hover:bg-slate-100 transition-colors">${state.user.full_name || state.user.fullName}</button>
+        ` : `
+          <button onclick="setView('login')" class="text-sm font-semibold px-4 py-2 rounded-lg text-blue-950 hover:bg-slate-100 transition-colors">${t("login")}</button>
+        `}
+        <button onclick="setView('wizard')" class="text-sm font-semibold px-4 py-2.5 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors shadow-sm">${t("post_need")}</button>
+      </div>
+      <div class="flex md:hidden items-center gap-2">
+        ${renderLangSwitcher()}
+        <button class="text-blue-950 p-1" onclick="toggleMenu()">${icon(state.menuOpen?'x':'menu','w-6 h-6')}</button>
+      </div>
+    </div>
+    ${state.menuOpen ? `
+    <div class="md:hidden border-t border-slate-100 px-5 py-4 flex flex-col gap-4 bg-white">
+      ${navItem(t("home"), "home")}
+      ${navItem(t("how_it_works"), "comment")}
+      ${navItem(t("find_pro"), "search")}
+      ${state.user ? navItem(t("my_space"), "dashboard") + navItem(t("notifications"), "notifications") + navItem(t("settings"), "settings") : navItem(t("login"), "login")}
+      <button onclick="setView('wizard');toggleMenu()" class="text-sm font-semibold px-4 py-2.5 rounded-lg bg-orange-500 text-white text-center">${t("post_need")}</button>
+    </div>` : ""}
+  </header>`;
+}
+
+/* =========================================================================
+   Accueil
+   ========================================================================= */
+function renderHome(){
+  const isAr = state.lang === 'ar';
+  const arrowIcon = isAr ? 'arrow-left' : 'arrow-right';
+
+  const stepsData = {
+    fr: [
+      ["Décrivez votre besoin","En quelques mots, expliquez ce dont vous avez besoin.","file-text"],
+      ["Ajoutez des photos","Une image aide le professionnel à mieux comprendre le problème.","camera"],
+      ["Recevez des propositions","Des professionnels qualifiés vous répondent avec un devis.","message-circle"],
+      ["Choisissez votre pro","Comparez, échangez, et sélectionnez celui qui vous convient.","thumbs-up"]
+    ],
+    ar: [
+      ["صف احتياجاتك","اشرح المشكل أو الأشغال التي ترغب بالقيام بها ببضع كلمات.","file-text"],
+      ["أضف صوراً توضيحية","تساعد الصور الحرفي على فهم المشكلة وتحديد السعر بدقة.","camera"],
+      ["استقبل عروض الأسعار","يقوم حرفيون مؤهلون ومحترفون بإرسال عروضهم ورسائلهم.","message-circle"],
+      ["اختر الحرفي المناسب","قارن العروض والتقييمات، تواصل معه واختر الأنسب لك.","thumbs-up"]
+    ],
+    en: [
+      ["Describe your need","In a few words, explain the project or repair required.","file-text"],
+      ["Add photos","Photos help the professional better assess the job.","camera"],
+      ["Receive proposals","Qualified pros reply with estimates and messages.","message-circle"],
+      ["Choose your pro","Compare profiles, chat, and pick the right one for you.","thumbs-up"]
+    ]
+  };
+
+  const steps = stepsData[state.lang] || stepsData.fr;
+
+  return `
+  <section class="bg-blue-950">
+    <div class="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-24 grid md:grid-cols-2 gap-10 items-center">
+      <div>
+        <h1 class="text-3xl md:text-5xl font-extrabold text-white leading-tight font-display">${t("hero_title")}</h1>
+        <p class="mt-5 text-blue-100 text-base md:text-lg max-w-md">${t("hero_sub")}</p>
+        <div class="mt-8 flex flex-col sm:flex-row gap-3">
+          <button onclick="setView('wizard')" class="px-6 py-3.5 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 transition-colors flex items-center justify-center gap-2">
+            ${t("hero_btn_need")} ${icon(arrowIcon,'w-4 h-4')}
+          </button>
+          <button onclick="state.authType='pro'; setView(state.user ? 'dashboard' : 'signup')" class="px-6 py-3.5 rounded-lg bg-blue-900 text-white font-semibold hover:bg-blue-800 transition-colors border border-blue-800">${t("hero_btn_pro")}</button>
+        </div>
+        <div class="mt-8 flex items-center gap-6 text-blue-200 text-sm">
+          <div class="flex items-center gap-1.5">${icon('shield-check','w-4 h-4')} ${t("verified_profiles")}</div>
+          <div class="flex items-center gap-1.5">${icon('users','w-4 h-4')} ${t("growing_community")}</div>
+        </div>
+      </div>
+      <div class="rounded-2xl bg-blue-900 border border-blue-800 p-6">
+        <div class="rounded-xl bg-white p-5">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-semibold">KB</div>
+            <div>
+              <div class="font-semibold text-blue-950 text-sm">Karim B. — Plombier / رصاص</div>
+              <div class="flex items-center gap-1 text-xs text-slate-500">${stars(4.9)} 132 avis · Blida</div>
+            </div>
+            ${icon('badge-check','w-5 h-5 text-blue-600 ms-auto')}
+          </div>
+          <div class="text-sm text-slate-600 bg-slate-50 rounded-lg p-3 mb-3">"Je peux passer aujourd'hui entre 14h et 16h pour un diagnostic de la fuite."</div>
+          <div class="flex gap-2"><div class="flex-1 h-8 rounded-md bg-blue-50"></div><div class="flex-1 h-8 rounded-md bg-blue-50"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20">
+    <h2 class="text-2xl md:text-3xl font-extrabold text-blue-950 text-center font-display">${t("how_it_works")}</h2>
+    <div class="mt-10 grid sm:grid-cols-2 md:grid-cols-4 gap-5">
+      ${steps.map(([title,desc,iconName])=>`
+        <div class="rounded-xl border border-slate-100 p-5 shadow-sm">
+          <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-4">${icon(iconName,'w-5 h-5 text-blue-950')}</div>
+          <div class="font-semibold text-blue-950">${title}</div>
+          <div class="text-sm text-slate-500 mt-1.5">${desc}</div>
+        </div>`).join("")}
+    </div>
+  </section>
+
+  <section class="bg-slate-50 py-16 md:py-20">
+    <div class="max-w-6xl mx-auto px-5 md:px-8">
+      <h2 class="text-2xl md:text-3xl font-extrabold text-blue-950 text-center font-display">${t("pro_for_every_need")}</h2>
+      <div class="mt-10 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        ${state.categories.length ? state.categories.map(c=>`
+          <button onclick="setView('wizard')" class="bg-white rounded-xl border border-slate-100 p-5 flex flex-col items-center gap-3 shadow-sm hover:shadow-md hover:border-blue-100 transition-all text-center">
+            <div class="w-11 h-11 rounded-lg bg-blue-50 flex items-center justify-center">${icon(c.icon,'w-5 h-5 text-blue-950')}</div>
+            <span class="text-sm font-medium text-slate-700">${c.name}</span>
+          </button>`).join("") : `<div class="col-span-full text-center text-sm text-slate-400 py-8">${state.errors.categories ? errorBox(state.errors.categories) : t("loading_categories")}</div>`}
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-blue-950 py-16">
+    <div class="max-w-3xl mx-auto px-5 text-center">
+      <h2 class="text-2xl md:text-3xl font-extrabold text-white font-display">${t("your_project_starts")}</h2>
+      <button onclick="setView('wizard')" class="mt-6 px-7 py-3.5 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 transition-colors">${t("post_need")}</button>
+    </div>
+  </section>`;
+}
+
+function renderComment(){
+  const steps = COMMENT_I18N[state.lang] || COMMENT_I18N.fr;
+  return `
+  <div class="max-w-3xl mx-auto px-5 md:px-8 py-16">
+    <h1 class="text-3xl font-extrabold text-blue-950 text-center font-display">${t("how_it_works")}</h1>
+    <div class="mt-10 space-y-5">
+      ${steps.map(([title,desc],i)=>`
+        <div class="flex gap-4 items-start bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
+          <div class="w-9 h-9 rounded-full bg-blue-950 text-white flex items-center justify-center font-semibold text-sm shrink-0">${i+1}</div>
+          <div><div class="font-semibold text-blue-950">${title}</div><div class="text-sm text-slate-500 mt-1">${desc}</div></div>
+        </div>`).join("")}
+    </div>
+    <div class="text-center mt-10">
+      <button onclick="setView('wizard')" class="px-6 py-3.5 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600">${t("post_need")}</button>
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   Connexion / Inscription
+   ========================================================================= */
+function renderLogin(){
+  return `
+  <div class="bg-slate-50 min-h-[70vh] flex items-center justify-center py-16">
+    <div class="w-full max-w-sm bg-white rounded-2xl border border-slate-100 shadow-sm p-6 md:p-8">
+      <h1 class="text-xl font-bold text-blue-950 font-display mb-1">${t("login")}</h1>
+      <p class="text-sm text-slate-500 mb-6">${state.lang === 'ar' ? 'قم بتسجيل الدخول إلى حسابك في بريكولي' : 'Accédez à votre espace BRICOLE.'}</p>
+      ${state.authError ? `<div class="mb-4">${errorBox(state.authError)}</div>` : ""}
+      <div class="space-y-3">
+        <input id="loginEmail" type="email" placeholder="${t("email")}" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+        <input id="loginPassword" type="password" placeholder="${t("password")}" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+      </div>
+      <button ${state.authLoading?'disabled':''} onclick="doLogin(document.getElementById('loginEmail').value, document.getElementById('loginPassword').value)" class="w-full mt-4 py-3 rounded-lg bg-blue-950 text-white text-sm font-semibold hover:bg-blue-900 disabled:opacity-50 flex items-center justify-center gap-2">
+        ${state.authLoading ? icon('loader-2','w-4 h-4 spin') : ""} ${t("login")}
+      </button>
+      <div class="text-center mt-4 text-xs text-slate-400">${t("no_account_yet")} <button onclick="setView('signup')" class="text-orange-600 font-medium">${t("signup")}</button></div>
+    </div>
+  </div>`;
+}
+function renderSignup(){
+  return `
+  <div class="bg-slate-50 min-h-[70vh] flex items-center justify-center py-16">
+    <div class="w-full max-w-sm bg-white rounded-2xl border border-slate-100 shadow-sm p-6 md:p-8">
+      <h1 class="text-xl font-bold text-blue-950 font-display mb-1">${t("signup")}</h1>
+      <p class="text-sm text-slate-500 mb-6">${state.lang === 'ar' ? 'انضم إلى بريكولي في بضع ثوانٍ.' : 'Rejoignez BRICOLE en quelques secondes.'}</p>
+      ${state.authError ? `<div class="mb-4">${errorBox(state.authError)}</div>` : ""}
+      <div class="grid grid-cols-2 gap-2 mb-5">
+        <button onclick="setAuthType('particulier')" class="text-sm font-medium py-2.5 rounded-lg border ${state.authType==='particulier'?'border-orange-500 bg-orange-50 text-orange-700':'border-slate-200 text-slate-600'}">${t("iam_particulier")}</button>
+        <button onclick="setAuthType('pro')" class="text-sm font-medium py-2.5 rounded-lg border ${state.authType==='pro'?'border-orange-500 bg-orange-50 text-orange-700':'border-slate-200 text-slate-600'}">${t("iam_pro")}</button>
+      </div>
+      <div class="space-y-3">
+        <input id="suName" placeholder="${t("full_name")}" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+        <input id="suPhone" placeholder="${t("phone")}" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+        <input id="suEmail" type="email" placeholder="${t("email")}" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+        <input id="suPassword" type="password" placeholder="${t("password")} (${state.lang === 'ar' ? '8 أحرف على الأقل' : '8 caractères min.'})" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+      </div>
+      <button ${state.authLoading?'disabled':''} onclick="doRegister({fullName:document.getElementById('suName').value, phone:document.getElementById('suPhone').value, email:document.getElementById('suEmail').value, password:document.getElementById('suPassword').value})" class="w-full mt-4 py-3 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 flex items-center justify-center gap-2">
+        ${state.authLoading ? icon('loader-2','w-4 h-4 spin') : ""} ${t("signup")}
+      </button>
+      <div class="text-center mt-4 text-xs text-slate-400">${t("already_account")} <button onclick="setView('login')" class="text-orange-600 font-medium">${t("login")}</button></div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   Assistant de publication (Wizard)
+   ========================================================================= */
+function renderWizard(){
+  const s = state.wizardStep, d = state.wizardData;
+  const choices = getChoices();
+  const wq = choices.wizardQ;
+  const isAr = state.lang === 'ar';
+  const prevIcon = isAr ? 'chevron-right' : 'chevron-left';
+  const nextIcon = isAr ? 'chevron-left' : 'chevron-right';
+
+  let body = "";
+  if(s===1) body = `<h2 class="text-xl font-bold text-blue-950 mb-5 font-display">${wq.q1}</h2>${wizardChoiceGroup('besoin', choices.besoins, 2)}`;
+  if(s===2) body = `<h2 class="text-xl font-bold text-blue-950 mb-5 font-display">${wq.q2}</h2>
+    <div class="grid grid-cols-3 gap-3">
+      ${state.categories.map(c=>`
+        <button onclick="wizardSet('categoryId',${c.id},{categoryName:'${c.name}'})" class="flex flex-col items-center gap-2 px-3 py-4 rounded-lg border transition-colors ${d.categoryId===c.id?'border-orange-500 bg-orange-50':'border-slate-200 hover:border-slate-300'}">
+          ${icon(c.icon, `w-5 h-5 ${d.categoryId===c.id?'text-orange-600':'text-blue-950'}`)}
+          <span class="text-xs font-medium text-slate-600 text-center">${c.name}</span>
+        </button>`).join("")}
+    </div>`;
+  if(s===3) body = `<h2 class="text-xl font-bold text-blue-950 mb-2 font-display">${wq.q3}</h2>
+    <p class="text-sm text-slate-500 mb-4">${wq.q3Sub}</p>
+    <textarea oninput="wizardUpdateText('description', this.value)" rows="5" placeholder="${wq.q3Ph}" class="w-full rounded-lg border border-slate-200 p-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400">${d.description}</textarea>`;
+  if(s===4) body = `<h2 class="text-xl font-bold text-blue-950 mb-5 font-display">${wq.q4}</h2>
+    <button onclick="wizardAddPhoto()" class="w-full rounded-lg border-2 border-dashed border-slate-300 py-10 flex flex-col items-center gap-2 text-slate-400 hover:border-orange-300 hover:text-orange-500 transition-colors">
+      ${icon('image-plus','w-7 h-7')}<span class="text-sm font-medium">${wq.q4Btn}</span>
+    </button>
+    <p class="text-xs text-slate-400 mt-2">${wq.q4Sub}</p>
+    ${d.photos>0 ? `<div class="mt-4 flex gap-2 flex-wrap">${Array.from({length:d.photos}).map(()=>`<div class="w-16 h-16 rounded-lg bg-slate-100 flex items-center justify-center">${icon('camera','w-5 h-5 text-slate-400')}</div>`).join("")}</div>` : ""}`;
+  if(s===5) body = `<h2 class="text-xl font-bold text-blue-950 mb-5 font-display">${wq.q5}</h2>
+    <div class="space-y-3">
+      <input oninput="wizardUpdateText('ville', this.value)" value="${d.ville}" placeholder="${wq.q5City}" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+      <input oninput="wizardUpdateText('codePostal', this.value)" value="${d.codePostal}" placeholder="${wq.q5Zip}" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">
+    </div>`;
+  if(s===6) body = `<h2 class="text-xl font-bold text-blue-950 mb-5 font-display">${wq.q6}</h2>${wizardChoiceGroup('budget', choices.budgets, 2)}`;
+  if(s===7) body = `<h2 class="text-xl font-bold text-blue-950 mb-5 font-display">${wq.q7}</h2>${wizardChoiceGroup('urgence', choices.urgences, 2)}`;
+  if(s===8) body = `<h2 class="text-xl font-bold text-blue-950 mb-2 font-display">${wq.q8}</h2>
+    <p class="text-sm text-slate-500 mb-4">${wq.q8Sub}</p>
+    <input oninput="wizardUpdateText('disponibilite', this.value)" value="${d.disponibilite}" placeholder="${wq.q8Ph}" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200">`;
+  if(s===9){
+    const rowLabels = wq.rows;
+    const rows = [
+      [rowLabels[0], d.besoin||"—"], [rowLabels[1], d.categoryName||"—"], [rowLabels[2], d.description||"—"],
+      [rowLabels[3], `${d.photos} ${state.lang==='ar'?'ملف/صورة':'file(s)'}`], [rowLabels[4], `${d.ville||"—"} ${d.codePostal}`],
+      [rowLabels[5], d.budget||"—"], [rowLabels[6], d.urgence||"—"], [rowLabels[7], d.disponibilite||"—"]
+    ];
+    body = `<h2 class="text-xl font-bold text-blue-950 mb-5 font-display">${wq.q9}</h2>
+    ${!state.user ? `<div class="mb-4">${errorBox(wq.q9AuthWarning)}</div>` : ""}
+    ${state.wizardError ? `<div class="mb-4">${errorBox(state.wizardError)}</div>` : ""}
+    <div class="space-y-3 text-sm">
+      ${rows.map(([l,v])=>`<div class="flex justify-between border-b border-slate-100 pb-2.5"><span class="text-slate-400">${l}</span><span class="text-slate-700 font-medium text-right max-w-[60%]">${v}</span></div>`).join("")}
+    </div>`;
+  }
+
+  return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-2xl mx-auto px-5 py-10">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-medium text-blue-950">${t("step")} ${s} / ${WIZARD_TOTAL}</span>
+        <button onclick="setView('home')" class="text-sm text-slate-400 hover:text-slate-600">${t("cancel")}</button>
+      </div>
+      <div class="w-full h-1.5 bg-slate-200 rounded-full mb-8 overflow-hidden">
+        <div class="h-full bg-orange-500 step-progress" style="width:${(s/WIZARD_TOTAL)*100}%"></div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 md:p-8">
+        ${body}
+        <div class="flex items-center justify-between mt-8 pt-5 border-t border-slate-100">
+          <button onclick="wizardPrev()" ${s===1?'disabled':''} class="flex items-center gap-1.5 text-sm font-medium px-4 py-2.5 rounded-lg ${s===1?'text-slate-300':'text-slate-500 hover:bg-slate-50'}">${icon(prevIcon,'w-4 h-4')} ${t("back")}</button>
+          ${s<WIZARD_TOTAL
+            ? `<button onclick="wizardNext()" class="flex items-center gap-1.5 text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors ${wizardCanNext()?'bg-blue-950 text-white hover:bg-blue-900':'bg-slate-100 text-slate-400'}">${t("continue")} ${icon(nextIcon,'w-4 h-4')}</button>`
+            : `<button ${state.wizardSubmitting?'disabled':''} onclick="publierDemande()" class="flex items-center gap-1.5 text-sm font-semibold px-5 py-2.5 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors disabled:opacity-50">${state.wizardSubmitting?icon('loader-2','w-4 h-4 spin'):''} ${t("publish_request")} ${icon('check','w-4 h-4')}</button>`}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   Recherche de professionnels
+   ========================================================================= */
+function renderSearch(){
+  const allTradesLabel = t("all_trades");
+  const metiers = [allTradesLabel, ...state.categories.map(c=>c.name)];
+  if (!state.professionalsLoaded && !state.loading.professionals) {
+    loadProfessionals();
+  }
+
+  return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-6xl mx-auto px-5 md:px-8 py-10">
+      <h1 class="text-2xl font-extrabold text-blue-950 font-display">${t("find_pro")}</h1>
+      <div class="mt-5 flex flex-wrap gap-2">
+        ${metiers.map(m=>`<button onclick="setSearchMetier('${m}')" class="px-4 py-2 rounded-full text-sm font-medium border transition-colors ${state.searchMetier===m?'bg-blue-950 text-white border-blue-950':'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}">${m}</button>`).join("")}
+      </div>
+      ${state.loading.professionals ? spinner() : state.errors.professionals ? `<div class="mt-8">${errorBox(state.errors.professionals)}</div>` : `
+      <div class="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        ${state.professionals.length === 0 ? `<div class="col-span-full text-center text-sm text-slate-400 py-10">${state.lang==='ar'?'لا يوجد أي مهني مطابق حالياً.':'No matching professionals found.'}</div>` : state.professionals.map(p=>`
+          <div class="bg-white rounded-xl border border-slate-100 p-5 shadow-sm flex flex-col">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-semibold">${initialsOf(p.full_name)}</div>
+              <div class="flex-1">
+                <div class="flex items-center gap-1.5"><span class="font-semibold text-blue-950 text-sm">${p.full_name}</span>${p.verified?icon('badge-check','w-4 h-4 text-blue-600'):''}</div>
+                <div class="text-xs text-slate-500">${(p.metiers||[]).join(", ") || "—"}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 mt-3 text-xs text-slate-500">${stars(p.average_rating)} ${p.average_rating||"—"} (${p.review_count||0} ${t("reviews")})</div>
+            <div class="flex items-center gap-1 mt-1.5 text-xs text-slate-400">${icon('map-pin','w-3.5 h-3.5')} ${p.ville||"—"} · ${p.experience_years||0} ${t("exp_years")}</div>
+            <div class="mt-4">
+              <button onclick="loadProfessionalDetail('${p.id}');setView('profile')" class="w-full text-sm font-medium px-3 py-2 rounded-lg border border-slate-200 text-blue-950 hover:bg-slate-50">${t("see_profile")}</button>
+            </div>
+          </div>`).join("")}
+      </div>`}
+    </div>
+  </div>`;
+}
+
+function renderProfile(){
+  if (state.loading.professionalDetail) return `<div class="bg-slate-50 min-h-[70vh]">${spinner()}</div>`;
+  if (state.errors.professionalDetail) return `<div class="bg-slate-50 min-h-[70vh] max-w-2xl mx-auto px-5 py-10">${errorBox(state.errors.professionalDetail)}</div>`;
+  if (!state.professionalDetail) return `<div class="bg-slate-50 min-h-[70vh]"></div>`;
+  const { professional: p, portfolio, reviews } = state.professionalDetail;
+
+  return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-4xl mx-auto px-5 md:px-8 py-10">
+      <button onclick="setView('search')" class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-950 mb-6">${icon('chevron-left','w-4 h-4')} ${t("back_to_search", "Retour à la recherche")}</button>
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 md:p-8">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div class="w-16 h-16 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center text-xl font-bold">${initialsOf(p.full_name)}</div>
+          <div class="flex-1">
+            <div class="flex items-center gap-2">
+              <h1 class="text-xl font-bold text-blue-950 font-display">${p.full_name}</h1>
+              ${p.verified?`<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">${icon('badge-check','w-3.5 h-3.5 mr-1')}${t("verified_adj")}</span>`:''}
+            </div>
+            <div class="text-slate-500 text-sm mt-0.5">${(p.metiers||[]).join(", ")||"—"} · ${p.ville||"—"} · ${p.experience_years||0} ${t("exp_years", "ans d'expérience")}</div>
+            <div class="flex items-center gap-2 mt-1.5 text-sm">${stars(p.average_rating)} <span class="font-medium text-blue-950">${p.average_rating||"—"}</span> <span class="text-slate-400">(${p.review_count||0} ${t("reviews")})</span></div>
+          </div>
+        </div>
+        <p class="mt-6 text-sm text-slate-600 leading-relaxed">${p.bio || `${(p.metiers||[]).join(', ')} ${t("operating_in")} ${p.ville||t("your_region")}.`}</p>
+        <div class="mt-6 bg-slate-50 rounded-lg p-4 text-sm text-slate-500">
+          ${t("contact_pro_hint", "Pour contacter ce professionnel, publiez une demande dans son métier — il pourra alors se manifester et vous pourrez échanger directement.")}
+          <button onclick="setView('wizard')" class="block mt-2 text-orange-600 font-medium">${t("post_need_arrow")}</button>
+        </div>
+        <div class="mt-6">
+          <div class="text-sm font-semibold text-blue-950 mb-2">${t("portfolio", "Réalisations")}</div>
+          <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            ${portfolio.length ? portfolio.map(item=>`<div class="aspect-square rounded-lg bg-slate-100 bg-cover bg-center" style="background-image:url('${item.image_url}')"></div>`).join("") : Array.from({length:4}).map(()=>`<div class="aspect-square rounded-lg bg-slate-100"></div>`).join("")}
+          </div>
+        </div>
+        <div class="mt-6">
+          <div class="text-sm font-semibold text-blue-950 mb-3">${t("client_reviews", "Avis clients")}</div>
+          <div class="space-y-3">
+            ${reviews.length === 0 ? `<div class="text-sm text-slate-400">${t("no_reviews_yet", "Pas encore d'avis.")}</div>` : reviews.map(r=>`
+            <div class="border border-slate-100 rounded-lg p-4">
+              <div class="flex items-center justify-between"><span class="text-sm font-medium text-blue-950">${r.particulier_name}</span>${stars((r.qualite+r.ponctualite+r.prix+r.communication+r.professionnalisme)/5)}</div>
+              <p class="text-sm text-slate-500 mt-1.5">${r.commentaire||""}</p>
+            </div>`).join("")}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   Détail d'une demande (particulier) : propositions + devis
+   ========================================================================= */
+function renderRequestDetail(){
+  if (state.loading.requestDetail) return `<div class="bg-slate-50 min-h-[70vh]">${spinner()}</div>`;
+  if (state.errors.requestDetail) return `<div class="bg-slate-50 min-h-[70vh] max-w-2xl mx-auto px-5 py-10">${errorBox(state.errors.requestDetail)}</div>`;
+  if (!state.requestDetail) return `<div class="bg-slate-50 min-h-[70vh]"></div>`;
+  const { request } = state.requestDetail;
+
+  return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-2xl mx-auto px-5 md:px-8 py-10">
+      <button onclick="setView('dashboard')" class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-950 mb-6">${icon('chevron-left','w-4 h-4')} ${t("back_to_requests", "Retour à mes demandes")}</button>
+
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-5">
+        <div class="flex items-center justify-between">
+          <h1 class="text-lg font-bold text-blue-950 font-display">${request.type_besoin} — ${request.category_name}</h1>
+          <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLES[request.status]}">${STATUS_LABELS[request.status]}</span>
+        </div>
+        <p class="text-sm text-slate-600 mt-3">${request.description}</p>
+        <div class="text-xs text-slate-400 mt-3">${request.ville} · ${t("urgency_label")} : ${request.urgence} · ${t("budget_label")} : ${request.budget||t("not_specified")}</div>
+        ${request.status === "pro_selectionne" || request.status === "en_cours" ? `
+          <button onclick="markRequestComplete('${request.id}')" class="mt-4 text-sm font-medium px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">${t("mark_completed", "Marquer les travaux comme terminés")}</button>
+        ` : ""}
+        ${request.status === "terminee" ? `
+          <button onclick="setView('reviews')" class="mt-4 text-sm font-medium px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600">${t("leave_review", "Laisser un avis")}</button>
+        ` : ""}
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-5">
+        <div class="text-sm font-semibold text-blue-950 mb-3">${t("interested_pros", "Professionnels intéressés")} (${state.requestProposals.length})</div>
+        ${state.requestProposals.length === 0 ? `<div class="text-sm text-slate-400">${t("no_interested_yet", "Aucun professionnel ne s'est encore manifesté.")}</div>` : `
+        <div class="space-y-3">
+          ${state.requestProposals.map(p=>`
+            <div class="flex items-center justify-between border border-slate-100 rounded-lg p-4">
+              <div>
+                <div class="text-sm font-medium text-blue-950 flex items-center gap-1.5">${p.professional_name}${p.verified?icon('badge-check','w-3.5 h-3.5 text-blue-600'):''}</div>
+                <div class="text-xs text-slate-400 mt-1">${p.message||""}</div>
+              </div>
+              <button onclick="openConversationForProposal('${request.id}','${p.professional_id}')" class="text-sm font-medium px-3 py-2 rounded-lg border border-slate-200 text-blue-950 hover:bg-slate-50">${t("message_btn", "Message")}</button>
+            </div>`).join("")}
+        </div>`}
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        <div class="text-sm font-semibold text-blue-950 mb-3">${t("received_quotes", "Devis reçus")} (${state.requestQuotes.length})</div>
+        ${state.requestQuotes.length === 0 ? `<div class="text-sm text-slate-400">${t("no_quotes_yet", "Aucun devis pour l'instant.")}</div>` : `
+        <div class="space-y-4">
+          ${state.requestQuotes.map(q=>`
+            <div class="border border-slate-100 rounded-lg p-4">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-blue-950">${q.professional_name}</span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${q.status==='accepte'?'bg-green-100 text-green-700':q.status==='refuse'?'bg-red-100 text-red-700':'bg-purple-100 text-purple-700'}">${q.status}</span>
+              </div>
+              <p class="text-sm text-slate-600 mt-2">${q.description}</p>
+              <div class="flex justify-between items-center mt-3">
+                <span class="text-xs text-slate-400">${t("estimated_duration", "Durée estimée")} : ${q.duree_estimee||"—"}</span>
+                <span class="text-base font-bold text-blue-950 font-display">${Number(q.total).toLocaleString('fr-FR')} DA</span>
+              </div>
+              ${q.status==='en_attente' ? `
+              <div class="flex gap-2 mt-3">
+                <button onclick="decideQuote('${q.id}','refuse')" class="flex-1 text-sm font-medium px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">${t("refuse", "Refuser")}</button>
+                <button onclick="decideQuote('${q.id}','accepte')" class="flex-1 text-sm font-semibold px-3 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600">${t("accept", "Accepter")}</button>
+              </div>` : ""}
+            </div>`).join("")}
+        </div>`}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   Formulaire de devis (professionnel)
+   ========================================================================= */
+function renderQuoteForm(){
+  const q = state.quoteForm;
+  return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-xl mx-auto px-5 md:px-8 py-10">
+      <button onclick="setView('dashboard')" class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-950 mb-6">${icon('chevron-left','w-4 h-4')} ${t("back", "Retour")}</button>
+      <h1 class="text-2xl font-extrabold text-blue-950 font-display">${t("send_quote", "Envoyer un devis")}</h1>
+      <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 space-y-4">
+        <textarea oninput="state.quoteForm.description=this.value" rows="3" placeholder="${t("work_description", "Description des travaux")}" class="w-full rounded-lg border border-slate-200 p-3 text-sm">${q.description}</textarea>
+        <div class="grid grid-cols-2 gap-3">
+          <input oninput="state.quoteForm.mainOeuvre=this.value" type="number" placeholder="${t("labor_cost", "Main-d'œuvre (DA)")}" class="rounded-lg border border-slate-200 px-3 py-2.5 text-sm">
+          <input oninput="state.quoteForm.materiaux=this.value" type="number" placeholder="${t("materials_cost", "Matériaux (DA)")}" class="rounded-lg border border-slate-200 px-3 py-2.5 text-sm">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <input oninput="state.quoteForm.frais=this.value" type="number" placeholder="${t("misc_cost", "Frais divers (DA)")}" class="rounded-lg border border-slate-200 px-3 py-2.5 text-sm">
+          <input oninput="state.quoteForm.dureeEstimee=this.value" placeholder="${t("estimated_duration", "Durée estimée")}" class="rounded-lg border border-slate-200 px-3 py-2.5 text-sm">
+        </div>
+        <input oninput="state.quoteForm.dateProposee=this.value" type="date" class="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm">
+        <button onclick="submitQuote()" class="w-full py-3 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600">${t("send_quote", "Envoyer le devis")}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   Messagerie
+   ========================================================================= */
+function renderMessaging(){
+  const isAr = state.lang === 'ar';
+  const backIcon = isAr ? 'chevron-right' : 'chevron-left';
+  const sendIcon = isAr ? 'send' : 'send';
+
+  if (!state.selectedConversationId) {
+    if (!state.conversationsLoaded && !state.loading.conversations) {
+      loadConversations();
+    }
+    return `
+    <div class="bg-slate-50 min-h-[70vh]">
+      <div class="max-w-2xl mx-auto px-5 md:px-8 py-10">
+        <h1 class="text-2xl font-extrabold text-blue-950 font-display">${t("my_conversations")}</h1>
+        ${state.loading.conversations ? spinner() : state.errors.conversations ? `<div class="mt-6">${errorBox(state.errors.conversations)}</div>` : `
+        <div class="mt-6 space-y-3">
+          ${state.conversations.length===0 ? `<div class="bg-white rounded-xl border border-slate-100 p-8 text-center text-sm text-slate-400">${t("no_conversations")}</div>` : state.conversations.map(c=>`
+            <button onclick="loadMessages('${c.id}')" class="w-full text-start bg-white rounded-xl border border-slate-100 p-5 hover:bg-slate-50 flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-semibold">${initialsOf(c.other_party_name)}</div>
+              <div class="flex-1">
+                <div class="text-sm font-semibold text-blue-950">${c.other_party_name}</div>
+                <div class="text-xs text-slate-400 mt-0.5">${c.last_message || c.type_besoin}</div>
+              </div>
+            </button>`).join("")}
+        </div>`}
+      </div>
+    </div>`;
+  }
+
+  const conv = state.conversations.find(c=>c.id===state.selectedConversationId);
+  return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-2xl mx-auto px-5 md:px-8 py-10">
+      <button onclick="state.selectedConversationId=null;render()" class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-950 mb-4">${icon(backIcon,'w-4 h-4')} ${t("all_conversations")}</button>
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
+          <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-semibold">${initialsOf(conv ? conv.other_party_name : "?")}</div>
+          <div><div class="text-sm font-semibold text-blue-950">${conv ? conv.other_party_name : ""}</div></div>
+        </div>
+        <div id="msgBox" class="p-5 space-y-3 h-80 overflow-y-auto">
+          ${state.loading.messages ? spinner() : state.messages.map(m=>`
+            <div class="flex ${m.sender_id===state.user.id?'justify-end':'justify-start'}">
+              <div class="max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${m.sender_id===state.user.id?'bg-blue-950 text-white rounded-br-sm':'bg-slate-100 text-slate-700 rounded-bl-sm'}">${m.content}</div>
+            </div>`).join("")}
+        </div>
+        <div class="flex items-center gap-2 px-4 py-3 border-t border-slate-100">
+          <input id="msgInput" onkeydown="if(event.key==='Enter')sendMessage()" placeholder="${t("type_message")}" class="flex-1 text-sm px-4 py-2.5 rounded-full bg-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-200">
+          <button onclick="sendMessage()" class="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center hover:bg-orange-600 ${isAr ? 'scale-x-[-1]' : ''}">${icon(sendIcon,'w-4 h-4')}</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   Tableau de bord
+   ========================================================================= */
+function renderDashboard(){
+  if (!state.user) { setView("login"); return ""; }
+
+  if (state.user.role === "pro") {
+    return `
+    <div class="bg-slate-50 min-h-[70vh]">
+      <div class="max-w-5xl mx-auto px-5 md:px-8 py-10">
+        <h1 class="text-2xl font-extrabold text-blue-950 font-display">${t("pro_space")}</h1>
+        <div class="mt-5 flex flex-wrap gap-2">
+          <button onclick="setView('appointments');loadAppointments()" class="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm text-blue-950 hover:bg-slate-50">${icon('calendar','w-4 h-4')} ${t("appointments")}</button>
+          <button onclick="setView('messaging');loadConversations()" class="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm text-blue-950 hover:bg-slate-50">${icon('message-circle','w-4 h-4')} ${t("messages")}</button>
+        </div>
+        ${state.loading.feed ? spinner() : state.errors.feed ? `<div class="mt-6">${errorBox(state.errors.feed)}</div>` : `
+        <div class="mt-8 bg-white rounded-xl border border-slate-100 divide-y divide-slate-100">
+          ${state.feed.length===0 ? `<div class="p-8 text-center text-sm text-slate-400">${t("no_feed")}</div>` : state.feed.map(r=>`
+            <div class="p-5 flex items-center justify-between gap-4">
+              <div>
+                <div class="font-medium text-blue-950 text-sm">${r.type_besoin} — ${r.category_name}</div>
+                <div class="text-xs text-slate-400 mt-1">${r.ville} · ${r.urgence}</div>
+                <div class="text-xs text-slate-500 mt-1">${r.description}</div>
+              </div>
+              <div class="flex gap-2 shrink-0">
+                <button onclick="exprimerInteret('${r.id}')" class="text-sm font-medium px-3.5 py-2 rounded-lg bg-blue-950 text-white hover:bg-blue-900">${t("interested")}</button>
+                <button onclick="openQuoteForm('${r.id}')" class="text-sm font-medium px-3.5 py-2 rounded-lg border border-slate-200 text-blue-950 hover:bg-slate-50">${t("send_quote")}</button>
+              </div>
+            </div>`).join("")}
+        </div>`}
+      </div>
+    </div>`;
+  }
+
+  // particulier
+  return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-5xl mx-auto px-5 md:px-8 py-10">
+      <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-extrabold text-blue-950 font-display">${t("my_requests")}</h1>
+        <button onclick="setView('wizard')" class="px-4 py-2.5 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600">${t("new_request")}</button>
+      </div>
+      <div class="mt-5 flex flex-wrap gap-2">
+        <button onclick="setView('appointments');loadAppointments()" class="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm text-blue-950 hover:bg-slate-50">${icon('calendar','w-4 h-4')} ${t("appointments")}</button>
+        <button onclick="setView('messaging');loadConversations()" class="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm text-blue-950 hover:bg-slate-50">${icon('message-circle','w-4 h-4')} ${t("messages")}</button>
+      </div>
+      ${state.loading.myRequests ? spinner() : state.errors.myRequests ? `<div class="mt-6">${errorBox(state.errors.myRequests)}</div>` : `
+      <div class="mt-6 space-y-3">
+        ${state.myRequests.length===0 ? `<div class="bg-white rounded-xl border border-slate-100 p-8 text-center text-sm text-slate-400">${t("no_requests")}</div>` : state.myRequests.map(d=>`
+          <button onclick="loadRequestDetail('${d.id}');setView('requestDetail')" class="w-full text-left bg-white rounded-xl border border-slate-100 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50">
+            <div>
+              <div class="font-medium text-blue-950 text-sm">${d.type_besoin} — ${d.category_name||""}</div>
+              <div class="text-xs text-slate-400 mt-1">Publiée le ${fmtDate(d.created_at)}</div>
+              <div class="text-xs text-slate-400 mt-0.5">${d.interesses} intéressé(s) · ${d.devis} devis reçu(s)</div>
+            </div>
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_STYLES[d.status]}">${STATUS_LABELS[d.status]}</span>
+          </button>`).join("")}
+      </div>`}
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   Rendez-vous
+   ========================================================================= */
+function renderAppointments(){
+  return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-2xl mx-auto px-5 md:px-8 py-10">
+      <h1 class="text-2xl font-extrabold text-blue-950 font-display">${t("appointments")}</h1>
+      ${state.loading.appointments ? spinner() : state.errors.appointments ? `<div class="mt-6">${errorBox(state.errors.appointments)}</div>` : `
+      <div class="mt-6 space-y-3">
+        ${state.appointments.length===0 ? `<div class="bg-white rounded-xl border border-slate-100 p-8 text-center text-sm text-slate-400">${t("no_appointments")}</div>` : state.appointments.map(a=>`
+          <div class="bg-white rounded-xl border border-slate-100 p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">${icon('calendar','w-5 h-5 text-blue-950')}</div>
+            <div class="flex-1">
+              <div class="text-sm font-semibold text-blue-950">${a.type} avec ${a.other_party_name}</div>
+              <div class="text-xs text-slate-400 mt-1">${fmtDateTime(a.scheduled_at)}</div>
+            </div>
+          </div>`).join("")}
+      </div>`}
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   Notifications
+   ========================================================================= */
+function renderNotifications(){
+  return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-2xl mx-auto px-5 md:px-8 py-10">
+      <h1 class="text-2xl font-extrabold text-blue-950 font-display">${t("notifications")}</h1>
+      <div class="mt-6 bg-white rounded-xl border border-slate-100 divide-y divide-slate-100">
+        ${state.notifications.length===0 ? `<div class="p-8 text-center text-sm text-slate-400">${t("no_notifications")}</div>` : state.notifications.map(n=>`
+          <button onclick="markNotificationRead('${n.id}')" class="w-full text-left p-5 flex items-start gap-3 ${n.is_read?'':'bg-blue-50/40'}">
+            <div class="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">${icon('bell','w-4 h-4 text-blue-950')}</div>
+            <div class="flex-1 text-sm ${n.is_read?'text-slate-500':'text-slate-800 font-medium'}">${n.text}</div>
+            ${!n.is_read ? `<span class="w-2 h-2 rounded-full bg-orange-500 mt-2 shrink-0"></span>` : ""}
+          </button>`).join("")}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   Avis
+   ========================================================================= */
+function renderReviews(){
+  const criteres = getChoices().criteres;
+  if(state.reviewDraft.submitted){
+    return `
+    <div class="bg-slate-50 min-h-[70vh] flex items-center justify-center py-16">
+      <div class="text-center max-w-sm">
+        <div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">${icon('check','w-6 h-6 text-green-700')}</div>
+        <h1 class="text-xl font-bold text-blue-950 font-display">${t("thank_you", "Merci pour votre avis")}</h1>
+        <p class="text-sm text-slate-500 mt-2">${t("review_helps", "Votre retour aide les autres particuliers à choisir le bon professionnel.")}</p>
+        <button onclick="setView('dashboard')" class="mt-6 px-5 py-2.5 rounded-lg bg-blue-950 text-white text-sm font-semibold">${t("back_to_space", "Retour à mon espace")}</button>
+      </div>
+    </div>`;
+  }
+  return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-xl mx-auto px-5 md:px-8 py-10">
+      <h1 class="text-2xl font-extrabold text-blue-950 font-display">${t("leave_review", "Laisser un avis")}</h1>
+      <p class="text-sm text-slate-500 mt-1">${t("regarding_request", "Concernant votre demande terminée.")}</p>
+      <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 space-y-5">
+        ${criteres.map(([f,label])=>`
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-slate-600">${label}</span>
+            <div class="flex gap-1">
+              ${[1,2,3,4,5].map(i=>`<button onclick="setReviewScore('${f}',${i})">${icon('star', `w-5 h-5 ${i<=state.reviewDraft[f]?'fill-orange-400 text-orange-400':'fill-slate-200 text-slate-200'}`)}</button>`).join("")}
+            </div>
+          </div>`).join("")}
+        <textarea oninput="state.reviewDraft.commentaire=this.value" rows="4" placeholder="${t("describe_experience", "Décrivez votre expérience...")}" class="w-full rounded-lg border border-slate-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"></textarea>
+        <button onclick="submitReview('${state.selectedRequestId}')" class="w-full py-3 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600">${t("submit_review", "Publier mon avis")}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   Paramètres
+   ========================================================================= */
+function renderSettings(){
+  if (!state.user) { setView("login"); return ""; }
+  return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-xl mx-auto px-5 md:px-8 py-10">
+      <h1 class="text-2xl font-extrabold text-blue-950 font-display">${t("settings", "Paramètres")}</h1>
+      <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 space-y-4">
+        <div><label class="text-xs text-slate-400">${t("name_label", "Nom complet")}</label><input id="setName" value="${state.user.full_name||state.user.fullName||''}" class="w-full mt-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm"></div>
+        <div><label class="text-xs text-slate-400">${t("email", "Email")}</label><input value="${state.user.email}" disabled class="w-full mt-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm bg-slate-50 text-slate-400"></div>
+        <button onclick="apiFetch('/users/me',{method:'PUT',body:{fullName:document.getElementById('setName').value}}).then(r=>{state.user.full_name=r.user.full_name;render();}).catch(e=>alert(e.message))" class="w-full py-3 rounded-lg bg-blue-950 text-white text-sm font-semibold hover:bg-blue-900">${t("save", "Enregistrer")}</button>
+        ${state.user.role === 'admin' ? `<button onclick="setView('admin');loadAdmin()" class="w-full py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-blue-950 hover:bg-slate-50">${t("admin", "Administration")}</button>` : ""}
+        <button onclick="logout()" class="w-full py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-500 hover:bg-slate-50">${t("logout", "Se déconnecter")}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   Administration
+   ========================================================================= */
+function renderAdmin(){
+  if (state.loading.admin) return `<div class="bg-slate-50 min-h-[70vh]">${spinner()}</div>`;
+  if (state.errors.admin) return `<div class="bg-slate-50 min-h-[70vh] max-w-2xl mx-auto px-5 py-10">${errorBox(state.errors.admin)}</div>`;
+  if (!state.adminStats) return `<div class="bg-slate-50 min-h-[70vh]"></div>`;
+  const s = state.adminStats;
+  const labels = ADMIN_LABELS_I18N[state.lang] || ADMIN_LABELS_I18N.fr;
+  const stats = [[labels[0],s.particuliers],[labels[1],s.professionnels],[labels[2],s.demandesPubliees],[labels[3],s.demandesTerminees],[labels[4],s.chiffreAffaires],[labels[5],s.nombreDevis]];
+  return `
+  <div class="bg-slate-50 min-h-[70vh]">
+    <div class="max-w-5xl mx-auto px-5 md:px-8 py-10">
+      <h1 class="text-2xl font-extrabold text-blue-950 font-display">${t("admin", "Administration")}</h1>
+      <div class="mt-6 grid sm:grid-cols-3 gap-4">
+        ${stats.map(([l,v])=>`<div class="bg-white rounded-xl border border-slate-100 p-5"><div class="text-2xl font-extrabold text-blue-950 font-display">${v}</div><div class="text-sm text-slate-500 mt-1">${l}</div></div>`).join("")}
+      </div>
+      <div class="mt-8 bg-white rounded-xl border border-slate-100 overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 text-sm font-semibold text-blue-950">${t("recent_users", "Utilisateurs récents")}</div>
+        <div class="divide-y divide-slate-100">
+          ${state.adminUsers.map(u=>`
+            <div class="px-5 py-4 flex items-center justify-between">
+              <div><div class="text-sm font-medium text-blue-950">${u.full_name}</div><div class="text-xs text-slate-400">${u.role}${u.role==='pro' ? (u.verified? ' · ' + t("verified_adj") : ' · ' + t("not_verified_adj")) : ''}</div></div>
+              <div class="flex items-center gap-3">
+                ${u.role==='pro' && !u.verified ? `<button onclick="verifyPro('${u.id}',true)" class="text-xs font-medium text-blue-700 hover:underline">${t("verify_btn", "Vérifier")}</button>` : ""}
+                <button onclick="suspendUser('${u.id}',${!u.is_suspended})" class="text-xs font-medium ${u.is_suspended?'text-green-600':'text-red-500'} hover:underline">${u.is_suspended?t("reactivate", "Réactiver"):t("suspend", "Suspendre")}</button>
+              </div>
+            </div>`).join("")}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   FAQ / CGU / Confidentialité / Contact (contenu statique)
+   ========================================================================= */
+function renderFAQ(){
+  const qas = FAQ_I18N[state.lang] || FAQ_I18N.fr;
+  return `
+  <div class="max-w-2xl mx-auto px-5 md:px-8 py-16">
+    <h1 class="text-3xl font-extrabold text-blue-950 text-center font-display">${t("faq_title", "Questions fréquentes")}</h1>
+    <div class="mt-10 space-y-3">
+      ${qas.map(([q,a])=>`
+        <details class="bg-white rounded-xl border border-slate-100 p-5 group">
+          <summary class="text-sm font-semibold text-blue-950 cursor-pointer list-none flex justify-between items-center">${q}${icon('chevron-right','w-4 h-4 text-slate-400 group-open:rotate-90 transition-transform')}</summary>
+          <p class="text-sm text-slate-500 mt-3">${a}</p>
+        </details>`).join("")}
+    </div>
+  </div>`;
+}
+function renderLegal(title, paragraphs){
+  return `
+  <div class="max-w-2xl mx-auto px-5 md:px-8 py-16">
+    <h1 class="text-2xl font-extrabold text-blue-950 font-display">${title}</h1>
+    <div class="mt-6 space-y-4 text-sm text-slate-600 leading-relaxed">${paragraphs.map(p=>`<p>${p}</p>`).join("")}</div>
+  </div>`;
+}
+function renderCGU(){
+  const data = CGU_I18N[state.lang] || CGU_I18N.fr;
+  return renderLegal(data.title, data.paragraphs);
+}
+function renderConfidentialite(){
+  const data = PRIVACY_I18N[state.lang] || PRIVACY_I18N.fr;
+  return renderLegal(data.title, data.paragraphs);
+}
+function renderContact(){
+  return `
+  <div class="max-w-md mx-auto px-5 md:px-8 py-16">
+    <h1 class="text-2xl font-extrabold text-blue-950 font-display">${t("contact_title", "Contact")}</h1>
+    <div class="mt-6 space-y-3">
+      <input placeholder="${t("name_label", "Nom")}" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm">
+      <input placeholder="${t("email", "Email")}" class="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm">
+      <textarea rows="4" placeholder="${t("your_message", "Votre message")}" class="w-full rounded-lg border border-slate-200 p-3 text-sm"></textarea>
+      <button onclick="alert(t('form_demo_msg', 'Merci, votre message a été noté.'))" class="w-full py-3 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600">${t("send", "Envoyer")}</button>
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   Footer
+   ========================================================================= */
+function renderFooter(){
+  return `
+  <footer class="bg-blue-950 text-blue-200 text-sm">
+    <div class="max-w-6xl mx-auto px-5 md:px-8 py-10 flex flex-col sm:flex-row justify-between gap-4 items-center">
+      <button onclick="setView('home')" class="flex items-center">
+        ${brandLogo(true)}
+      </button>
+      <div class="flex flex-wrap gap-x-6 gap-y-2">
+        <button onclick="setView('comment')" class="hover:text-white">${t("about")}</button>
+        <button onclick="setView('faq')" class="hover:text-white">${t("faq")}</button>
+        <button onclick="setView('cgu')" class="hover:text-white">${t("cgu")}</button>
+        <button onclick="setView('confidentialite')" class="hover:text-white">${t("privacy")}</button>
+        <button onclick="setView('contact')" class="hover:text-white">${t("contact")}</button>
+      </div>
+    </div>
+    <div class="border-t border-blue-900 py-4 text-center text-xs text-blue-400">© 2026 BRICOLE / بريكولي — ${t("rights_reserved")}</div>
+  </footer>`;
+}
+
+/* =========================================================================
+   Routeur / rendu principal
+   ========================================================================= */
+function render(){
+  if (!state.sessionChecked) {
+    document.getElementById("app").innerHTML = `<div class="min-h-screen flex items-center justify-center">${spinner()}</div>`;
+    return;
+  }
+  const views = {
+    home: renderHome, comment: renderComment, wizard: renderWizard,
+    search: renderSearch, profile: renderProfile, requestDetail: renderRequestDetail,
+    quoteForm: renderQuoteForm, messaging: renderMessaging,
+    dashboard: renderDashboard, login: renderLogin, signup: renderSignup,
+    appointments: renderAppointments, notifications: renderNotifications,
+    reviews: renderReviews, settings: renderSettings, admin: renderAdmin,
+    faq: renderFAQ, cgu: renderCGU, confidentialite: renderConfidentialite, contact: renderContact
+  };
+  document.getElementById("app").innerHTML = `
+    ${renderHeader()}
+    ${(views[state.view] || renderHome)()}
+    ${renderFooter()}
+  `;
+  if (window.lucide) lucide.createIcons();
+}
+
+init();
+</script>
+</body>
+</html>
