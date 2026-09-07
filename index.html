@@ -674,7 +674,7 @@ function renderLangSwitcher() {
 /* =========================================================================
    CONFIGURATION — à modifier avant publication
    ========================================================================= */
-const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:"
+const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
   ? "http://localhost:3001/api"
   : "https://bricole-backend.onrender.com/api";
 
@@ -1825,8 +1825,37 @@ function renderReviews(){
 /* =========================================================================
    Paramètres
    ========================================================================= */
+function saveBasicProfile(){
+  apiFetch('/users/me',{method:'PUT',body:{fullName:document.getElementById('setName').value}})
+    .then(r=>{state.user.full_name=r.user.full_name;render();})
+    .catch(e=>alert(e.message));
+}
+
+function saveProProfile(){
+  const ville = document.getElementById('setVille').value;
+  const bio = document.getElementById('setBio').value;
+  const experienceYears = document.getElementById('setExp').value;
+  const metiers = Array.from(document.querySelectorAll('.setMetier:checked')).map(el=>el.value);
+  apiFetch('/users/me',{method:'PUT',body:{
+    ville, bio,
+    experienceYears: experienceYears ? Number(experienceYears) : undefined,
+    metiers
+  }})
+    .then(()=>{
+      state.user.ville = ville;
+      state.user.bio = bio;
+      state.user.experience_years = experienceYears ? Number(experienceYears) : null;
+      state.user.metiers = metiers;
+      alert(t("saved_ok", "Profil mis à jour."));
+      render();
+    })
+    .catch(e=>alert(e.message));
+}
+
 function renderSettings(){
   if (!state.user) { setView("login"); return ""; }
+  const isPro = state.user.role === 'pro';
+  const currentMetiers = state.user.metiers || [];
   return `
   <div class="bg-slate-50 min-h-[70vh]">
     <div class="max-w-xl mx-auto px-5 md:px-8 py-10">
@@ -1834,7 +1863,30 @@ function renderSettings(){
       <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 space-y-4">
         <div><label class="text-xs text-slate-400">${t("name_label", "Nom complet")}</label><input id="setName" value="${state.user.full_name||state.user.fullName||''}" class="w-full mt-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm"></div>
         <div><label class="text-xs text-slate-400">${t("email", "Email")}</label><input value="${state.user.email}" disabled class="w-full mt-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm bg-slate-50 text-slate-400"></div>
-        <button onclick="apiFetch('/users/me',{method:'PUT',body:{fullName:document.getElementById('setName').value}}).then(r=>{state.user.full_name=r.user.full_name;render();}).catch(e=>alert(e.message))" class="w-full py-3 rounded-lg bg-blue-950 text-white text-sm font-semibold hover:bg-blue-900">${t("save", "Enregistrer")}</button>
+        <button onclick="saveBasicProfile()" class="w-full py-3 rounded-lg bg-blue-950 text-white text-sm font-semibold hover:bg-blue-900">${t("save", "Enregistrer")}</button>
+      </div>
+
+      ${isPro ? `
+      <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 space-y-4">
+        <div class="text-sm font-semibold text-blue-950">${t("pro_profile", "Profil professionnel")}</div>
+        <div class="text-xs text-slate-400 -mt-2">${t("pro_profile_hint", "Ces informations déterminent quelles demandes vous voyez dans votre fil.")}</div>
+        <div><label class="text-xs text-slate-400">${t("city", "Ville")}</label><input id="setVille" value="${state.user.ville||''}" placeholder="${t('city_placeholder','Ex: Alger')}" class="w-full mt-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm"></div>
+        <div><label class="text-xs text-slate-400">${t("experience_years", "Années d'expérience")}</label><input id="setExp" type="number" min="0" value="${state.user.experience_years||''}" class="w-full mt-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm"></div>
+        <div><label class="text-xs text-slate-400">${t("bio", "Bio")}</label><textarea id="setBio" rows="3" class="w-full mt-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm">${state.user.bio||''}</textarea></div>
+        <div>
+          <label class="text-xs text-slate-400">${t("trades", "Métiers")}</label>
+          <div class="mt-2 grid grid-cols-2 gap-2">
+            ${state.categories.map(c=>`
+              <label class="flex items-center gap-2 text-sm text-slate-600">
+                <input type="checkbox" class="setMetier" value="${c.name}" ${currentMetiers.includes(c.name)?'checked':''}>
+                ${c.name}
+              </label>`).join("")}
+          </div>
+        </div>
+        <button onclick="saveProProfile()" class="w-full py-3 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600">${t("save", "Enregistrer")}</button>
+      </div>` : ""}
+
+      <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 space-y-4">
         ${state.user.role === 'admin' ? `<button onclick="setView('admin');loadAdmin()" class="w-full py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-blue-950 hover:bg-slate-50">${t("admin", "Administration")}</button>` : ""}
         <button onclick="logout()" class="w-full py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-500 hover:bg-slate-50">${t("logout", "Se déconnecter")}</button>
       </div>
