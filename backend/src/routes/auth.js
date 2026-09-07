@@ -20,7 +20,7 @@ function generateToken(userId) {
 
 function sanitizeUser(user) {
   const { passwordHash, ...safe } = user;
-  return {
+  const out = {
     id: safe.id,
     full_name: safe.fullName,
     email: safe.email,
@@ -29,6 +29,18 @@ function sanitizeUser(user) {
     is_suspended: safe.isSuspended,
     created_at: safe.createdAt,
   };
+
+  if (safe.role === "pro" && safe.professionalProfile) {
+    let metiers = [];
+    try { metiers = JSON.parse(safe.professionalProfile.metiers || "[]"); } catch (_) {}
+    out.bio = safe.professionalProfile.bio || "";
+    out.metiers = metiers;
+    out.ville = safe.professionalProfile.ville || "";
+    out.experience_years = safe.professionalProfile.experienceYears || null;
+    out.verified = safe.professionalProfile.verified || false;
+  }
+
+  return out;
 }
 
 // ── POST /api/auth/register ──
