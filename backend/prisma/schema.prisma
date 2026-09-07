@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────
-// BRICOLE — Prisma Schema  (SQLite for local dev)
+// BRICOLE — Prisma Schema  (PostgreSQL for production / Render)
 // ─────────────────────────────────────────────────────────
 
 generator client {
@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
